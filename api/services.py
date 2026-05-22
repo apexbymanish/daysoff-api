@@ -107,3 +107,41 @@ def get_holidays(country: str, year: int, from_today: bool = False) -> list[dict
         today = _date.today()
         merged = [r for r in merged if r["date"] >= today]
     return merged
+
+
+def compare_countries(countries_csv: str, year: int) -> dict:
+    """Return shared dates + per-country uniques for the listed countries."""
+    raw_codes = [c.strip() for c in countries_csv.split(",") if c.strip()]
+    if len(raw_codes) < 2:
+        raise ApiInputError("compare needs at least 2 countries")
+    codes = [_validate_country(c) for c in raw_codes]
+    _validate_year(year)
+
+    # Build (date -> name) maps per country. Use the FIRST country's name
+    # when a date is shared across all of them.
+    per_country: dict[str, dict] = {}
+    for cc in codes:
+        recs = library_source.fetch(year, cc)
+        per_country[cc] = {r["date"]: r["name"] for r in recs}
+
+    # Shared = strict N-way intersection.
+    intersect = set(per_country[codes[0]].keys())
+    for cc in codes[1:]:
+        intersect &= set(per_country[cc].keys())
+    shared = [
+        {"date": d, "name": per_country[codes[0]][d]}
+        for d in sorted(intersect)
+    ]
+
+    # only[CC] = dates in CC but no other listed country.
+    only: dict[str, list[dict]] = {}
+    for cc in codes:
+        other_union: set = set()
+        for other_cc in codes:
+            if other_cc == cc:
+                continue
+            other_union |= set(per_country[other_cc].keys())
+        unique_dates = sorted(set(per_country[cc].keys()) - other_union)
+        only[cc] = [{"date": d, "name": per_country[cc][d]} for d in unique_dates]
+
+    return {"year": year, "countries": codes, "shared": shared, "only": only}

@@ -91,5 +91,45 @@ class TestHolidays(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
 
 
+class TestCompare(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_kr_np_2026_has_shared_christmas(self):
+        r = self.client.get("/v1/compare?countries=KR,NP&year=2026")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        shared_dates = [s["date"] for s in body["shared"]]
+        self.assertIn("2026-12-25", shared_dates)
+
+    def test_kr_unique_dates_present(self):
+        r = self.client.get("/v1/compare?countries=KR,NP&year=2026")
+        kr_only_names = " ".join(h["name"] for h in r.json()["only"]["KR"])
+        self.assertIn("Chuseok", kr_only_names)
+
+    def test_np_unique_dates_present(self):
+        r = self.client.get("/v1/compare?countries=KR,NP&year=2026")
+        np_only_names = " ".join(h["name"] for h in r.json()["only"]["NP"])
+        self.assertIn("Dashain", np_only_names)
+
+    def test_single_country_returns_400(self):
+        r = self.client.get("/v1/compare?countries=KR&year=2026")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("at least 2", r.json()["detail"])
+
+    def test_unsupported_member_returns_400(self):
+        r = self.client.get("/v1/compare?countries=KR,ZZ&year=2026")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("ZZ", r.json()["detail"])
+
+    def test_three_country_intersection(self):
+        # Christmas should be shared in any 3-way containing countries that
+        # observe it. Use KR, GB, US — all have Christmas (Dec 25).
+        r = self.client.get("/v1/compare?countries=KR,GB,US&year=2026")
+        self.assertEqual(r.status_code, 200)
+        shared_dates = [s["date"] for s in r.json()["shared"]]
+        self.assertIn("2026-12-25", shared_dates)
+
+
 if __name__ == "__main__":
     unittest.main()

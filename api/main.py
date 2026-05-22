@@ -58,3 +58,12 @@ def holidays(
         count=len(items),
         holidays=items,
     )
+
+
+@app.get("/v1/compare", response_model=schemas.CompareResponse)
+def compare(
+    countries: str = Query(..., description="Comma-separated ISO-2 codes, e.g. KR,NP"),
+    year: int = Query(default_factory=lambda: _date.today().year),
+) -> schemas.CompareResponse:
+    result = services.compare_countries(countries, year)
+    return schemas.CompareResponse(**result)

@@ -25,3 +25,15 @@ class HolidaysResponse(BaseModel):
     year: int
     count: int
     holidays: list[HolidayRecord]
+
+
+class CompareEntry(BaseModel):
+    date: date
+    name: str
+
+
+class CompareResponse(BaseModel):
+    year: int
+    countries: list[str]
+    shared: list[CompareEntry]
+    only: dict[str, list[CompareEntry]]
