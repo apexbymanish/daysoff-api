@@ -1,5 +1,4 @@
 """Pydantic response models for the daysoff-api HTTP surface."""
-from datetime import date
 from pydantic import BaseModel
 
 
