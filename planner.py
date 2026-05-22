@@ -211,6 +211,21 @@ def print_trip(trip, red_days, festivals, weekend_days, labels):
     print(f"  └─ Take {trip['cost']} PTO day(s)")
 
 
+def visit_overlap(trip: dict, visit_red_days: dict) -> list[tuple[date, str]]:
+    """Return [(date, name), ...] for visit-country red days inside the trip.
+
+    Pure helper — testable without I/O. Inclusive at both trip endpoints.
+    Result is sorted by date.
+    """
+    if not visit_red_days:
+        return []
+    start, end = trip["start"], trip["end"]
+    return sorted(
+        (d, name) for d, name in visit_red_days.items()
+        if start <= d <= end
+    )
+
+
 def print_nearby_festivals(start: date, end: date, festivals: dict, window: int = 7):
     """Print festivals within `window` days before/after a trip."""
     win = timedelta(days=window)
