@@ -97,8 +97,6 @@ class TestSandwichWorst(unittest.TestCase):
             self.assertNotIn(d, dates)
 
 
-
-
 # ─── custom weekend_days ──────────────────────────────────────────────────
 
 class TestDetectCustomWeekend(unittest.TestCase):

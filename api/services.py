@@ -4,13 +4,18 @@ This file contains no holiday logic of its own. It must only call into
 sources/, sandwich, storage, and planner. If a needed function is missing
 in those modules, add it there — not here.
 """
-import holidays
-from datetime import date as _date, timedelta
+from __future__ import annotations
 
-import sandwich as _sandwich_mod
-from planner import parse_workweek, WEEKDAY_MAP, WORKWEEK_FALLBACKS
-from storage import resolve_workweek
+from datetime import date as _date
+
+import holidays
+
+import sandwich
+from planner import (
+    WEEKDAY_MAP, WORKWEEK_FALLBACKS, daterange, parse_workweek,
+)
 from sources import library_source, news_source
+from storage import resolve_workweek
 
 
 # Hand-curated names for the codes we actively support. Codes outside this
@@ -154,13 +159,14 @@ def compare_countries(countries_csv: str, year: int) -> dict:
     return {"year": year, "countries": codes, "shared": shared, "only": only}
 
 
-def _set_to_day_names(weekend_days: set) -> list:
+def _set_to_day_names(weekend_days: set[int]) -> list[str]:
     """{5, 6} -> ['sat', 'sun'] (sorted)."""
     inverse = {v: k for k, v in WEEKDAY_MAP.items()}
     return [inverse[i] for i in sorted(weekend_days)]
 
 
-def _resolve_workweek_for_sandwiches(country: str, workweek):
+def _resolve_workweek_for_sandwiches(country: str, workweek: str | None
+                                     ) -> tuple[set[int], list[str], str]:
     """Return (weekend_days_int_set, weekend_days_str_list, source_string).
 
     Cascade: explicit param → most recent policy → hardcoded fallback → 400.
@@ -191,16 +197,7 @@ def _resolve_workweek_for_sandwiches(country: str, workweek):
 _WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
-def _walk(start, end):
-    """Iterate dates from start to end inclusive (timedelta walk)."""
-    one = timedelta(days=1)
-    d = start
-    while d <= end:
-        yield d
-        d += one
-
-
-def get_sandwiches(country: str, year: int, workweek=None,
+def get_sandwiches(country: str, year: int, workweek: str | None = None,
                    from_today: bool = False) -> dict:
     """Return the /v1/sandwiches response body as a plain dict."""
     cc = _validate_country(country)
@@ -213,7 +210,7 @@ def get_sandwiches(country: str, year: int, workweek=None,
     holiday_name_map = {r["date"]: r["name"] for r in lib_records}
     holiday_dates = set(holiday_name_map.keys())
 
-    raw = _sandwich_mod.detect(holiday_dates, year, weekend_days=weekend_set)
+    raw = sandwich.detect(holiday_dates, year, weekend_days=weekend_set)
     today = _date.today()
     items = []
     for s in raw:
@@ -221,7 +218,7 @@ def get_sandwiches(country: str, year: int, workweek=None,
             continue
         anchors = [
             holiday_name_map[d]
-            for d in _walk(s["break_start"], s["break_end"])
+            for d in daterange(s["break_start"], s["break_end"])
             if d in holiday_name_map
         ]
         items.append({

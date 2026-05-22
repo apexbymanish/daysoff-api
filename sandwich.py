@@ -6,11 +6,10 @@ A 'sandwich day' is a workday that sits between two non-working days
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Optional
 
 
 def detect(holiday_dates: set[date], year: int,
-           weekend_days: Optional[set[int]] = None) -> list[dict]:
+           weekend_days: set[int] | None = None) -> list[dict]:
     """Find sandwich days in `year` given `holiday_dates` and `weekend_days`.
 
     weekend_days: set of weekday() integers that are OFF. Defaults to
