@@ -199,16 +199,29 @@ def best_portfolio(candidates, budget):
     return selected, dp[n][budget]
 
 
-def print_trip(trip, red_days, festivals, weekend_days, labels):
-    """Print a single trip with day-by-day classification."""
+def print_trip(trip, red_days, festivals, weekend_days, labels,
+               visit_red_days=None, visit_country=None):
+    """Print a single trip with day-by-day classification.
+
+    visit_red_days/visit_country are optional. When supplied, days inside
+    the trip that match visit red days get an additive 🌏 tag, and a
+    summary line lists the in-country holidays.
+    """
     pto_set = set(trip["pto"])
     print(f"\n  ┌─ {trip['start'].strftime('%a')} {trip['start']} "
           f"→ {trip['end'].strftime('%a')} {trip['end']}  "
           f"({trip['length']} days, {trip['cost']} PTO)")
     for d in daterange(trip["start"], trip["end"]):
-        label = classify_day(d, pto_set, red_days, festivals, weekend_days, labels)
+        label = classify_day(d, pto_set, red_days, festivals, weekend_days,
+                             labels, visit_red_days, visit_country)
         print(f"  │  {d.strftime('%a')} {d}  {label}")
     print(f"  └─ Take {trip['cost']} PTO day(s)")
+    if visit_red_days:
+        overlap = visit_overlap(trip, visit_red_days)
+        if overlap:
+            joined = ", ".join(f"{d} {name}" for d, name in overlap)
+            cc = visit_country or "??"
+            print(f"  In-country {cc} holidays during this trip: {joined}")
 
 
 def visit_overlap(trip: dict, visit_red_days: dict) -> list[tuple[date, str]]:
