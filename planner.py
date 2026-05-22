@@ -280,6 +280,9 @@ def main():
     ap.add_argument("--year", type=int, default=date.today().year)
     ap.add_argument("--country", default=saved_country,
                     help="ISO 2-letter code (KR, JP, NP, ...)")
+    ap.add_argument("--visit", default=cfg.get("visit"),
+                    help="Destination country (ISO 2-letter). Overlays "
+                         "its red days as annotations onto each trip.")
     ap.add_argument("--save", action="store_true",
                     help="Save current --budget, --country, --workweek "
                          "to ~/.daysoff/config.json")
@@ -363,6 +366,19 @@ def main():
     labels = LOCALE_LABELS.get(args.country, DEFAULT_LABELS)
 
     off_days, red_days, festivals = compute_calendar(args.year, args.country, weekend_days)
+
+    visit_red_days: dict = {}
+    visit_country = None
+    if args.visit and args.visit.upper() != args.country.upper():
+        visit_country = args.visit.upper()
+        try:
+            visit_records = library_source.fetch(args.year, visit_country)
+            visit_red_days = {r["date"]: r["name"] for r in visit_records}
+        except NotImplementedError:
+            print(f"\n⚠️  --visit {visit_country}: not supported by the "
+                  f"holidays library. Continuing without overlay.\n")
+            visit_country = None
+
     candidates = candidate_breaks(args.year, off_days, args.budget,
                                   max_break_len=args.max_length)
     if args.from_today:
@@ -392,7 +408,8 @@ def main():
         print(f"  🏆 LONGEST SINGLE BREAK")
         print(f"{'━' * 64}")
         if longest:
-            print_trip(longest, red_days, festivals, weekend_days, labels)
+            print_trip(longest, red_days, festivals, weekend_days, labels,
+                       visit_red_days, visit_country)
             if args.show_festivals_near > 0:
                 print_nearby_festivals(
                     longest["start"], longest["end"], festivals,
@@ -409,7 +426,8 @@ def main():
               f"{total_off} off-days, {used}/{args.budget} PTO used")
         print(f"{'━' * 64}")
         for p in portfolio:
-            print_trip(p, red_days, festivals, weekend_days, labels)
+            print_trip(p, red_days, festivals, weekend_days, labels,
+                       visit_red_days, visit_country)
             if args.show_festivals_near > 0:
                 print_nearby_festivals(
                     p["start"], p["end"], festivals,
