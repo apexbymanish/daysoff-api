@@ -82,8 +82,14 @@ def compute_calendar(year: int, country: str, weekend_days: set[int]):
 
 
 def classify_day(d: date, pto_set: set[date], red_days: dict, festivals: dict,
-                 weekend_days: set[int], labels: dict) -> str:
-    """Return the day-type label for a given date in a trip."""
+                 weekend_days: set[int], labels: dict,
+                 visit_red_days: dict | None = None,
+                 visit_country: str | None = None) -> str:
+    """Return the day-type label for a given date in a trip.
+
+    visit_red_days/visit_country are an optional ADDITIVE overlay — they do
+    not replace the primary tag. A day can be 🏖️ PTO AND 🌏 LOCAL HOLIDAY.
+    """
     is_weekend = d.weekday() in weekend_days
     is_red = d in red_days
     is_pto = d in pto_set
@@ -102,6 +108,9 @@ def classify_day(d: date, pto_set: set[date], red_days: dict, festivals: dict,
         parts.append(f"🎎 {f['name_en']}{loc}")
     if not parts:
         parts.append("💼 workday")
+    if visit_red_days and d in visit_red_days:
+        cc = visit_country or "??"
+        parts.append(f"🌏 LOCAL HOLIDAY ({cc}) — {visit_red_days[d]}")
     return " · ".join(parts)
 
 

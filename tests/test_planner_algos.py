@@ -298,5 +298,67 @@ class TestCandidateBreaks(unittest.TestCase):
             self.assertLessEqual(c["cost"], 2)
 
 
+# ─── classify_day with visit-country overlay ─────────────────────────────
+
+class TestClassifyDayVisit(unittest.TestCase):
+    def test_visit_red_day_adds_overlay_tag(self):
+        # Workday in home country that is a red day in visit country
+        label = classify_day(
+            date(2026, 10, 12),  # Mon — home workday
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={date(2026, 10, 12): "Dashain"},
+            visit_country="NP",
+        )
+        self.assertIn("LOCAL HOLIDAY", label)
+        self.assertIn("Dashain", label)
+        self.assertIn("NP", label)
+
+    def test_visit_overlay_does_not_replace_primary_tag(self):
+        # PTO day that is also red in visit country → both tags
+        label = classify_day(
+            date(2026, 10, 12),
+            pto_set={date(2026, 10, 12)},
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={date(2026, 10, 12): "Dashain"},
+            visit_country="NP",
+        )
+        self.assertIn("PTO", label)
+        self.assertIn("LOCAL HOLIDAY", label)
+        self.assertIn("Dashain", label)
+
+    def test_no_overlay_when_visit_red_days_empty(self):
+        label = classify_day(
+            date(2026, 10, 12),
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={},
+            visit_country="NP",
+        )
+        self.assertNotIn("LOCAL HOLIDAY", label)
+
+    def test_omitted_visit_args_preserve_legacy_behavior(self):
+        # Calling classify_day without the new kwargs must still work
+        label = classify_day(
+            date(2026, 5, 14),
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+        )
+        self.assertIn("workday", label)
+        self.assertNotIn("LOCAL HOLIDAY", label)
+
+
 if __name__ == "__main__":
     unittest.main()
