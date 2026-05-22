@@ -13,6 +13,11 @@ _DISPATCHERS = {
 }
 
 
+def supported_countries() -> set[str]:
+    """Return the ISO-2 codes that have a registered news scraper."""
+    return set(_DISPATCHERS.keys())
+
+
 def fetch(year: int, country: str = "KR") -> list[dict]:
     fn = _DISPATCHERS.get(country)
     if fn is None:
