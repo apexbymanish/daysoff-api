@@ -6,6 +6,8 @@ Endpoints are stateless and read-only. No auth in v1.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api import schemas, services
+
 
 API_VERSION = "1.0.0"
 
@@ -27,3 +29,9 @@ app.add_middleware(
 @app.get("/v1/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok", "version": API_VERSION}
+
+
+@app.get("/v1/countries", response_model=schemas.CountriesResponse)
+def countries() -> schemas.CountriesResponse:
+    items = services.list_countries()
+    return schemas.CountriesResponse(count=len(items), countries=items)
