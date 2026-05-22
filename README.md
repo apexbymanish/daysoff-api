@@ -266,6 +266,31 @@ python3 planner.py --budget 7 --country NP --from-today --strategy longest
 python3 main.py --year 2026 --country KR --upcoming --only-red
 ```
 
+## HTTP API
+
+`api/` exposes the same data over a stateless FastAPI service. Run locally:
+
+```bash
+python3 -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8080
+```
+
+Endpoints (all GET, all public, all under `/v1/`):
+
+| Path | Example |
+|---|---|
+| `/v1/healthz` | `curl localhost:8080/v1/healthz` |
+| `/v1/countries` | `curl localhost:8080/v1/countries` |
+| `/v1/holidays` | `curl 'localhost:8080/v1/holidays?country=KR&year=2026'` |
+| `/v1/compare` | `curl 'localhost:8080/v1/compare?countries=KR,NP&year=2026'` |
+| `/v1/sandwiches` | `curl 'localhost:8080/v1/sandwiches?country=KR&year=2026&workweek=sat,sun'` |
+
+Spec: [`docs/superpowers/specs/2026-05-22-read-api-design.md`](docs/superpowers/specs/2026-05-22-read-api-design.md).
+
+OpenAPI docs auto-generated at `/docs` when the server is running.
+
+Deploy via the included `api/Dockerfile`. A starter `fly.toml` ships in the
+repo; Render and Railway can use the Dockerfile directly with no extra config.
+
 ## Caveats
 
 - **News scraping is heuristic.** False positives (Indian-state news leaking into Nepal queries) and misses (policy-style news without explicit dates) are possible. Always verify high-stakes plans against an official source.
