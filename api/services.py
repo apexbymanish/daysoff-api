@@ -71,7 +71,7 @@ class ApiInputError(ValueError):
 def _validate_country(code: str) -> str:
     cc = code.upper()
     if cc not in supported_country_codes():
-        raise ApiInputError(f"country '{code}' not supported by holidays library")
+        raise ApiInputError(f"country '{cc}' not supported by holidays library")
     return cc
 
 

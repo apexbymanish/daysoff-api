@@ -5,7 +5,7 @@ Endpoints are stateless and read-only. No auth in v1.
 """
 from datetime import date as _date
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
