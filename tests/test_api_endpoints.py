@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi.testclient import TestClient
 
-from api.main import app
+from api.main import API_VERSION, app
 
 
 class TestHealthz(unittest.TestCase):
@@ -19,7 +19,7 @@ class TestHealthz(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual(body["status"], "ok")
-        self.assertIn("version", body)
+        self.assertEqual(body["version"], API_VERSION)
 
 
 if __name__ == "__main__":

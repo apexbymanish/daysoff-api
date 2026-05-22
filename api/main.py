@@ -25,5 +25,5 @@ app.add_middleware(
 
 
 @app.get("/v1/healthz")
-def healthz() -> dict:
+def healthz() -> dict[str, str]:
     return {"status": "ok", "version": API_VERSION}
