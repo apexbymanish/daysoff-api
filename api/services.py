@@ -114,7 +114,11 @@ def compare_countries(countries_csv: str, year: int) -> dict:
     raw_codes = [c.strip() for c in countries_csv.split(",") if c.strip()]
     if len(raw_codes) < 2:
         raise ApiInputError("compare needs at least 2 countries")
-    codes = [_validate_country(c) for c in raw_codes]
+    # Dedupe while preserving order. KR,KR would otherwise pass validation
+    # and produce a misleading "intersection" against itself.
+    codes = list(dict.fromkeys(_validate_country(c) for c in raw_codes))
+    if len(codes) < 2:
+        raise ApiInputError("compare needs at least 2 distinct countries")
     _validate_year(year)
 
     # Build (date -> name) maps per country. Use the FIRST country's name
@@ -125,9 +129,9 @@ def compare_countries(countries_csv: str, year: int) -> dict:
         per_country[cc] = {r["date"]: r["name"] for r in recs}
 
     # Shared = strict N-way intersection.
-    intersect = set(per_country[codes[0]].keys())
+    intersect = set(per_country[codes[0]])
     for cc in codes[1:]:
-        intersect &= set(per_country[cc].keys())
+        intersect &= per_country[cc].keys()
     shared = [
         {"date": d, "name": per_country[codes[0]][d]}
         for d in sorted(intersect)
@@ -140,8 +144,8 @@ def compare_countries(countries_csv: str, year: int) -> dict:
         for other_cc in codes:
             if other_cc == cc:
                 continue
-            other_union |= set(per_country[other_cc].keys())
-        unique_dates = sorted(set(per_country[cc].keys()) - other_union)
+            other_union |= per_country[other_cc].keys()
+        unique_dates = sorted(set(per_country[cc]) - other_union)
         only[cc] = [{"date": d, "name": per_country[cc][d]} for d in unique_dates]
 
     return {"year": year, "countries": codes, "shared": shared, "only": only}
