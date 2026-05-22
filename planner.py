@@ -353,14 +353,18 @@ def main():
             return
 
     if args.save:
-        user_config.save({
+        updates = {
             "country": args.country,
             "budget": args.budget,
             "workweeks": {args.country: workweek_spec},
-        })
+        }
+        if args.visit:
+            updates["visit"] = args.visit.upper()
+        user_config.save(updates)
+        saved_visit = f", visit={args.visit.upper()}" if args.visit else ""
         print(f"✅ Saved to ~/.daysoff/config.json: "
               f"country={args.country}, budget={args.budget}, "
-              f"workweek({args.country})={workweek_spec}\n")
+              f"workweek({args.country})={workweek_spec}{saved_visit}\n")
 
     weekend_days = parse_workweek(workweek_spec)
     labels = LOCALE_LABELS.get(args.country, DEFAULT_LABELS)
