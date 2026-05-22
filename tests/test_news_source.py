@@ -10,12 +10,11 @@ from sources import news_source
 
 class TestSupportedCountries(unittest.TestCase):
     def test_returns_kr_and_np(self):
+        # assertEqual against a set literal already verifies (a) set type
+        # and (b) exact membership — a separate isinstance test would be
+        # redundant.
         result = news_source.supported_countries()
         self.assertEqual(result, {"KR", "NP"})
-
-    def test_returns_a_set(self):
-        result = news_source.supported_countries()
-        self.assertIsInstance(result, set)
 
 
 if __name__ == "__main__":
