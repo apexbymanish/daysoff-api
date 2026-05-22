@@ -291,6 +291,11 @@ OpenAPI docs auto-generated at `/docs` when the server is running.
 Deploy via the included `api/Dockerfile`. A starter `fly.toml` ships in the
 repo; Render and Railway can use the Dockerfile directly with no extra config.
 
+The image ships with an empty `holidays.db` — news/policy rows accumulate
+only when the CLI commands (`main.py`, `planner.py --refresh-policies`)
+run inside the container. The library-sourced holidays (~250 countries)
+need no DB at all and are available immediately.
+
 ## Caveats
 
 - **News scraping is heuristic.** False positives (Indian-state news leaking into Nepal queries) and misses (policy-style news without explicit dates) are possible. Always verify high-stakes plans against an official source.

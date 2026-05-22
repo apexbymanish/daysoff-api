@@ -8,6 +8,8 @@ primary_region = "sin"  # Singapore — good latency for KR/NP/PH users
 
 [build]
   dockerfile = "api/Dockerfile"
+  # Build context defaults to the project root, which is what we want —
+  # api/ imports config.py, storage.py, planner.py, sources/ from there.
 
 [http_service]
   internal_port = 8080
