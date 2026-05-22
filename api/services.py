@@ -5,8 +5,9 @@ sources/, sandwich, storage, and planner. If a needed function is missing
 in those modules, add it there — not here.
 """
 import holidays
+from datetime import date as _date
 
-from sources import news_source
+from sources import library_source, news_source
 
 
 # Hand-curated names for the codes we actively support. Codes outside this
@@ -54,3 +55,55 @@ def list_countries() -> list[dict]:
         }
         for code in supported_country_codes()
     ]
+
+
+YEAR_MIN = 1900
+YEAR_MAX = 2100
+
+
+class ApiInputError(ValueError):
+    """Raised by the service layer when the caller passes bad input.
+
+    Mapped to HTTP 400 by api/main.py.
+    """
+
+
+def _validate_country(code: str) -> str:
+    cc = code.upper()
+    if cc not in supported_country_codes():
+        raise ApiInputError(f"country '{code}' not supported by holidays library")
+    return cc
+
+
+def _validate_year(year: int) -> int:
+    if year < YEAR_MIN or year > YEAR_MAX:
+        raise ApiInputError(f"year {year} out of range [{YEAR_MIN}, {YEAR_MAX}]")
+    return year
+
+
+def get_holidays(country: str, year: int, from_today: bool = False) -> list[dict]:
+    """Library + news union for one country/year, deduped on (date, name)."""
+    cc = _validate_country(country)
+    _validate_year(year)
+
+    lib_records = library_source.fetch(year, cc)
+    news_records = news_source.fetch(year, cc) if cc in news_source.supported_countries() else []
+
+    seen: set[tuple] = set()
+    merged: list[dict] = []
+    for r in lib_records + news_records:
+        key = (r["date"], r["name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append({
+            "date": r["date"],
+            "name": r["name"],
+            "source": r["source"],
+        })
+    merged.sort(key=lambda r: r["date"])
+
+    if from_today:
+        today = _date.today()
+        merged = [r for r in merged if r["date"] >= today]
+    return merged

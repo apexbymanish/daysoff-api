@@ -3,8 +3,11 @@
 The HTTP surface wraps the existing CLI modules — see api/services.py.
 Endpoints are stateless and read-only. No auth in v1.
 """
-from fastapi import FastAPI
+from datetime import date as _date
+
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api import schemas, services
 
@@ -26,6 +29,11 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(services.ApiInputError)
+def _handle_input_error(request: Request, exc: services.ApiInputError):
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.get("/v1/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok", "version": API_VERSION}
@@ -35,3 +43,18 @@ def healthz() -> dict[str, str]:
 def countries() -> schemas.CountriesResponse:
     items = services.list_countries()
     return schemas.CountriesResponse(count=len(items), countries=items)
+
+
+@app.get("/v1/holidays", response_model=schemas.HolidaysResponse)
+def holidays(
+    country: str = Query(..., description="ISO-2 country code (e.g. KR)"),
+    year: int = Query(default_factory=lambda: _date.today().year),
+    from_today: bool = Query(False),
+) -> schemas.HolidaysResponse:
+    items = services.get_holidays(country, year, from_today=from_today)
+    return schemas.HolidaysResponse(
+        country=country.upper(),
+        year=year,
+        count=len(items),
+        holidays=items,
+    )
