@@ -131,5 +131,53 @@ class TestCompare(unittest.TestCase):
         self.assertIn("2026-12-25", shared_dates)
 
 
+class TestSandwiches(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_kr_2026_with_explicit_workweek(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["country"], "KR")
+        self.assertEqual(body["workweek"], ["sat", "sun"])
+        self.assertGreater(body["count"], 0)
+        for s in body["sandwiches"]:
+            self.assertEqual(s["pto_cost"], 1)
+            self.assertIn("pto_date", s)
+            self.assertIn("break_start", s)
+            self.assertIn("break_end", s)
+            self.assertIn("break_length", s)
+            self.assertIn("context", s)
+
+    def test_sandwiches_sorted_by_pto_date(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
+        )
+        dates = [s["pto_date"] for s in r.json()["sandwiches"]]
+        self.assertEqual(dates, sorted(dates))
+
+    def test_invalid_workweek_returns_400(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=xyz,bogus"
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_unsupported_country_returns_400(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=ZZ&year=2026&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_missing_workweek_with_no_policy_returns_400(self):
+        # AQ (Antarctica) has no policy in storage, no fallback in
+        # WORKWEEK_FALLBACKS — should 400 with a clear message.
+        r = self.client.get("/v1/sandwiches?country=AQ&year=2026")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("workweek", r.json()["detail"].lower())
+
+
 if __name__ == "__main__":
     unittest.main()

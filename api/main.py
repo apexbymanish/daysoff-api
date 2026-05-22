@@ -67,3 +67,16 @@ def compare(
 ) -> schemas.CompareResponse:
     result = services.compare_countries(countries, year)
     return schemas.CompareResponse(**result)
+
+
+@app.get("/v1/sandwiches", response_model=schemas.SandwichesResponse)
+def sandwiches(
+    country: str = Query(..., description="ISO-2 country code"),
+    year: int = Query(default_factory=lambda: _date.today().year),
+    workweek: str = Query(default=None, description="Comma list of OFF days, e.g. sat,sun"),
+    from_today: bool = Query(False),
+) -> schemas.SandwichesResponse:
+    result = services.get_sandwiches(
+        country, year, workweek=workweek, from_today=from_today
+    )
+    return schemas.SandwichesResponse(**result)

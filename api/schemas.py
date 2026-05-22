@@ -37,3 +37,22 @@ class CompareResponse(BaseModel):
     countries: list[str]
     shared: list[CompareEntry]
     only: dict[str, list[CompareEntry]]
+
+
+class SandwichRecord(BaseModel):
+    pto_date: date
+    weekday: str
+    break_start: date
+    break_end: date
+    break_length: int
+    pto_cost: int
+    context: str
+
+
+class SandwichesResponse(BaseModel):
+    country: str
+    year: int
+    workweek: list[str]
+    workweek_source: str
+    count: int
+    sandwiches: list[SandwichRecord]

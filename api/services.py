@@ -5,8 +5,11 @@ sources/, sandwich, storage, and planner. If a needed function is missing
 in those modules, add it there — not here.
 """
 import holidays
-from datetime import date as _date
+from datetime import date as _date, timedelta
 
+import sandwich as _sandwich_mod
+from planner import parse_workweek, WEEKDAY_MAP, WORKWEEK_FALLBACKS
+from storage import resolve_workweek
 from sources import library_source, news_source
 
 
@@ -149,3 +152,94 @@ def compare_countries(countries_csv: str, year: int) -> dict:
         only[cc] = [{"date": d, "name": per_country[cc][d]} for d in unique_dates]
 
     return {"year": year, "countries": codes, "shared": shared, "only": only}
+
+
+def _set_to_day_names(weekend_days: set) -> list:
+    """{5, 6} -> ['sat', 'sun'] (sorted)."""
+    inverse = {v: k for k, v in WEEKDAY_MAP.items()}
+    return [inverse[i] for i in sorted(weekend_days)]
+
+
+def _resolve_workweek_for_sandwiches(country: str, workweek):
+    """Return (weekend_days_int_set, weekend_days_str_list, source_string).
+
+    Cascade: explicit param → most recent policy → hardcoded fallback → 400.
+    """
+    if workweek:
+        try:
+            wk_set = parse_workweek(workweek)
+        except KeyError as e:
+            raise ApiInputError(f"invalid workweek token: {e}")
+        return wk_set, _set_to_day_names(wk_set), "user"
+
+    policy = resolve_workweek(country, _date.today())
+    if policy:
+        wk_set = parse_workweek(policy["weekend_spec"])
+        src = (f"saved-policy:{policy['effective_date']}:"
+               f"{policy['confidence']}")
+        return wk_set, _set_to_day_names(wk_set), src
+
+    if country in WORKWEEK_FALLBACKS:
+        wk_set = parse_workweek(WORKWEEK_FALLBACKS[country])
+        return wk_set, _set_to_day_names(wk_set), "hardcoded-fallback"
+
+    raise ApiInputError(
+        f"no workweek on record for {country}; pass ?workweek=sat,sun"
+    )
+
+
+_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _walk(start, end):
+    """Iterate dates from start to end inclusive (timedelta walk)."""
+    one = timedelta(days=1)
+    d = start
+    while d <= end:
+        yield d
+        d += one
+
+
+def get_sandwiches(country: str, year: int, workweek=None,
+                   from_today: bool = False) -> dict:
+    """Return the /v1/sandwiches response body as a plain dict."""
+    cc = _validate_country(country)
+    _validate_year(year)
+    weekend_set, weekend_names, source = _resolve_workweek_for_sandwiches(
+        cc, workweek
+    )
+
+    lib_records = library_source.fetch(year, cc)
+    holiday_name_map = {r["date"]: r["name"] for r in lib_records}
+    holiday_dates = set(holiday_name_map.keys())
+
+    raw = _sandwich_mod.detect(holiday_dates, year, weekend_days=weekend_set)
+    today = _date.today()
+    items = []
+    for s in raw:
+        if from_today and s["sandwich_date"] < today:
+            continue
+        anchors = [
+            holiday_name_map[d]
+            for d in _walk(s["break_start"], s["break_end"])
+            if d in holiday_name_map
+        ]
+        items.append({
+            "pto_date": s["sandwich_date"],
+            "weekday": _WEEKDAY_LABELS[s["sandwich_date"].weekday()],
+            "break_start": s["break_start"],
+            "break_end": s["break_end"],
+            "break_length": s["break_length_days"],
+            "pto_cost": 1,
+            "context": " + ".join(anchors[:2]),
+        })
+
+    items.sort(key=lambda i: i["pto_date"])
+    return {
+        "country": cc,
+        "year": year,
+        "workweek": weekend_names,
+        "workweek_source": source,
+        "count": len(items),
+        "sandwiches": items,
+    }
