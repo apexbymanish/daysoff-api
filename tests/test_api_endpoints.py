@@ -244,6 +244,7 @@ class TestPlan(unittest.TestCase):
             "/v1/plan?country=KR&year=2026&budget=15"
             "&min_length=3&max_length=10&workweek=sat,sun"
         )
+        self.assertEqual(r.status_code, 200)
         for entries in r.json()["results_by_length"].values():
             for trip in entries:
                 self.assertEqual(len(trip["pto_dates"]), trip["pto_cost"])
@@ -253,6 +254,7 @@ class TestPlan(unittest.TestCase):
             "/v1/plan?country=KR&year=2026&budget=15"
             "&length=5&top=10&workweek=sat,sun"
         )
+        self.assertEqual(r.status_code, 200)
         entries = r.json()["results_by_length"]["5"]
         any_chuseok = any(
             any("Chuseok" in a for a in trip["anchors"])
