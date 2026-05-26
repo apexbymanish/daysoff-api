@@ -1,0 +1,32 @@
+# Fly.io deploy config for daysoff-api.
+# After installing flyctl: `fly launch --no-deploy` (or `fly deploy`) from
+# the project root. The app name below is a placeholder — flyctl will
+# prompt to rename on first launch.
+
+app = "daysoff-api"
+primary_region = "sin"  # Singapore — good latency for KR/NP/PH users
+
+[build]
+  dockerfile = "api/Dockerfile"
+  # Build context defaults to the project root, which is what we want —
+  # api/ imports config.py, storage.py, planner.py, sources/ from there.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  grace_period = "5s"
+  interval = "30s"
+  method = "GET"
+  path = "/v1/healthz"
+  protocol = "http"
+  timeout = "5s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

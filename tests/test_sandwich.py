@@ -97,5 +97,36 @@ class TestSandwichWorst(unittest.TestCase):
             self.assertNotIn(d, dates)
 
 
+# ─── custom weekend_days ──────────────────────────────────────────────────
+
+class TestDetectCustomWeekend(unittest.TestCase):
+    def test_wed_thu_weekend_finds_sandwich_friday(self):
+        # 2026-05-13 Wed (off), 2026-05-14 Thu (off), 2026-05-15 Fri (workday),
+        # 2026-05-16 Sat (workday in this scheme), 2026-05-17 Sun (workday).
+        # With weekend_days={2,3} (wed,thu), Friday is NOT a sandwich because
+        # Saturday after it is a workday.
+        # But add a holiday on Saturday → Friday becomes a sandwich.
+        from datetime import date
+        from sandwich import detect
+
+        holidays = {date(2026, 5, 16)}  # hypothetical Sat holiday
+        result = detect(holidays, 2026, weekend_days={2, 3})
+
+        sandwiches_on_friday = [s for s in result
+                                if s["sandwich_date"] == date(2026, 5, 15)]
+        self.assertEqual(len(sandwiches_on_friday), 1,
+                         "Friday should be a sandwich with wed,thu weekend "
+                         "and a Saturday holiday")
+
+    def test_default_weekend_days_preserves_legacy_behavior(self):
+        # Without passing weekend_days, behavior matches existing tests
+        from datetime import date
+        from sandwich import detect
+
+        # Just verify it runs and returns a list — exercising the default path
+        result = detect(set(), 2026)
+        self.assertIsInstance(result, list)
+
+
 if __name__ == "__main__":
     unittest.main()

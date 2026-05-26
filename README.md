@@ -25,7 +25,7 @@ daysoff-api/
 ├── config.py                  # user preferences (forward-compatible backend)
 ├── requirements.txt
 ├── .gitignore
-├── tests/                     # unittest suite (103 tests)
+├── tests/                     # unittest suite (136 tests)
 └── sources/
     ├── library_source.py      # offline `holidays` package (150+ countries)
     ├── gov_api_source.py      # Korea data.go.kr API (needs API key)
@@ -265,6 +265,39 @@ python3 planner.py --budget 7 --country NP --from-today --strategy longest
 # "Just the dates"
 python3 main.py --year 2026 --country KR --upcoming --only-red
 ```
+
+## HTTP API
+
+`api/` exposes the same data over a stateless FastAPI service. Run locally:
+
+```bash
+python3 -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8080
+```
+
+Endpoints (all GET, all public, all under `/v1/`):
+
+| Path | Example |
+|---|---|
+| `/v1/healthz` | `curl localhost:8080/v1/healthz` |
+| `/v1/countries` | `curl localhost:8080/v1/countries` |
+| `/v1/holidays` | `curl 'localhost:8080/v1/holidays?country=KR&year=2026'` |
+| `/v1/compare` | `curl 'localhost:8080/v1/compare?countries=KR,NP&year=2026'` |
+| `/v1/sandwiches` | `curl 'localhost:8080/v1/sandwiches?country=KR&year=2026&workweek=sat,sun'` |
+| `/v1/plan` | `curl 'localhost:8080/v1/plan?country=KR&year=2026&budget=15&min_length=3&max_length=10&workweek=sat,sun'` |
+
+Specs:
+- [`docs/superpowers/specs/2026-05-22-read-api-design.md`](docs/superpowers/specs/2026-05-22-read-api-design.md) — `/v1/healthz`, countries, holidays, compare, sandwiches.
+- [`docs/superpowers/specs/2026-05-22-plan-endpoint-design.md`](docs/superpowers/specs/2026-05-22-plan-endpoint-design.md) — `/v1/plan`.
+
+OpenAPI docs auto-generated at `/docs` when the server is running.
+
+Deploy via the included `api/Dockerfile`. A starter `fly.toml` ships in the
+repo; Render and Railway can use the Dockerfile directly with no extra config.
+
+The image ships with an empty `holidays.db` — news/policy rows accumulate
+only when the CLI commands (`main.py`, `planner.py --refresh-policies`)
+run inside the container. The library-sourced holidays (~250 countries)
+need no DB at all and are available immediately.
 
 ## Caveats
 

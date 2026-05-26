@@ -1,0 +1,1 @@
+"""daysoff-api HTTP service."""
