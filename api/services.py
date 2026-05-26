@@ -12,7 +12,8 @@ import holidays
 
 import sandwich
 from planner import (
-    WEEKDAY_MAP, WORKWEEK_FALLBACKS, daterange, parse_workweek,
+    WEEKDAY_MAP, WORKWEEK_FALLBACKS, candidate_breaks, compute_calendar,
+    daterange, parse_workweek,
 )
 from sources import library_source, news_source
 from storage import resolve_workweek
@@ -238,4 +239,98 @@ def get_sandwiches(country: str, year: int, workweek: str | None = None,
         "workweek_source": source,
         "count": len(items),
         "sandwiches": items,
+    }
+
+
+def _trip_to_payload(trip: dict, red_days: dict) -> dict:
+    """Shape one candidate_breaks output into the API trip dict.
+
+    `trip` keys (from planner.candidate_breaks): start, end, pto, cost, length.
+    `red_days`: {date: name} from planner.compute_calendar.
+    """
+    anchor_names: list[str] = []
+    seen_names: set[str] = set()
+    for d in daterange(trip["start"], trip["end"]):
+        name = red_days.get(d)
+        if name and name not in seen_names:
+            seen_names.add(name)
+            anchor_names.append(name)
+    return {
+        "break_start": trip["start"],
+        "break_end": trip["end"],
+        "break_length": trip["length"],
+        "pto_dates": list(trip["pto"]),
+        "pto_cost": trip["cost"],
+        "anchors": anchor_names,
+    }
+
+
+def get_plans(country: str, year: int, budget: int,
+              length: int | None = None,
+              min_length: int = 3, max_length: int = 10,
+              top: int = 1,
+              workweek: str | None = None,
+              from_today: bool = False) -> dict:
+    """Return the /v1/plan response body as a plain dict.
+
+    Two modes:
+      - length set: returns only that length, up to `top` entries.
+      - length unset: returns each length in [min_length, max_length],
+        up to `top` entries each.
+    """
+    cc = _validate_country(country)
+    _validate_year(year)
+    if budget < 0:
+        raise ApiInputError(f"budget must be >= 0, got {budget}")
+    if top < 1:
+        raise ApiInputError(f"top must be >= 1, got {top}")
+
+    if length is not None:
+        if length < 1 or length > 31:
+            raise ApiInputError(
+                f"length must be in [1, 31], got {length}"
+            )
+        wanted_lengths = [length]
+    else:
+        if min_length < 1 or max_length > 31:
+            raise ApiInputError(
+                f"min_length/max_length must be in [1, 31], "
+                f"got [{min_length}, {max_length}]"
+            )
+        if min_length > max_length:
+            raise ApiInputError(
+                f"min_length ({min_length}) > max_length ({max_length})"
+            )
+        wanted_lengths = list(range(min_length, max_length + 1))
+
+    weekend_set, weekend_names, source = _resolve_workweek(cc, workweek)
+
+    off_days, red_days, _festivals = compute_calendar(year, cc, weekend_set)
+    cap = max(wanted_lengths)
+    candidates = candidate_breaks(year, off_days, budget, max_break_len=cap)
+
+    if from_today:
+        today = _date.today()
+        candidates = [c for c in candidates if c["start"] >= today]
+
+    wanted_set = set(wanted_lengths)
+    results_by_length: dict[str, list[dict]] = {str(L): [] for L in wanted_lengths}
+    grouped: dict[int, list[dict]] = {L: [] for L in wanted_lengths}
+    for c in candidates:
+        if c["length"] in wanted_set:
+            grouped[c["length"]].append(c)
+
+    for L, trips in grouped.items():
+        trips.sort(key=lambda t: (t["cost"], t["start"]))
+        results_by_length[str(L)] = [
+            _trip_to_payload(t, red_days) for t in trips[:top]
+        ]
+
+    return {
+        "country": cc,
+        "year": year,
+        "budget": budget,
+        "workweek": weekend_names,
+        "workweek_source": source,
+        "results_by_length": results_by_length,
     }

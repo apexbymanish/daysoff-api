@@ -179,5 +179,36 @@ class TestSandwiches(unittest.TestCase):
         self.assertIn("workweek", r.json()["detail"].lower())
 
 
+class TestPlan(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_menu_view_returns_one_per_length_in_range(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=7&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["country"], "KR")
+        self.assertEqual(body["year"], 2026)
+        self.assertEqual(body["budget"], 15)
+        self.assertEqual(body["workweek"], ["sat", "sun"])
+        # range 3..7 = 5 lengths, each capped at top=1 (default)
+        self.assertEqual(
+            sorted(body["results_by_length"].keys()),
+            ["3", "4", "5", "6", "7"],
+        )
+        for length_key, entries in body["results_by_length"].items():
+            self.assertLessEqual(len(entries), 1)
+            for trip in entries:
+                self.assertEqual(trip["break_length"], int(length_key))
+                self.assertIn("break_start", trip)
+                self.assertIn("break_end", trip)
+                self.assertIn("pto_dates", trip)
+                self.assertIn("pto_cost", trip)
+                self.assertIn("anchors", trip)
+
+
 if __name__ == "__main__":
     unittest.main()
