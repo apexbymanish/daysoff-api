@@ -239,6 +239,31 @@ class TestPlan(unittest.TestCase):
                 # tie-break: earlier break_start first
                 self.assertLessEqual(prev["break_start"], curr["break_start"])
 
+    def test_pto_dates_consistent_with_cost(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=10&workweek=sat,sun"
+        )
+        for entries in r.json()["results_by_length"].values():
+            for trip in entries:
+                self.assertEqual(len(trip["pto_dates"]), trip["pto_cost"])
+
+    def test_anchors_present_when_break_spans_holiday(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&length=5&top=10&workweek=sat,sun"
+        )
+        entries = r.json()["results_by_length"]["5"]
+        any_chuseok = any(
+            any("Chuseok" in a for a in trip["anchors"])
+            for trip in entries
+        )
+        self.assertTrue(
+            any_chuseok,
+            f"expected at least one length-5 trip with a Chuseok anchor; "
+            f"got entries={entries}",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
