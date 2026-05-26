@@ -266,6 +266,29 @@ class TestPlan(unittest.TestCase):
             f"got entries={entries}",
         )
 
+    def test_unsupported_country_returns_400(self):
+        r = self.client.get(
+            "/v1/plan?country=ZZ&year=2026&budget=15&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("ZZ", r.json()["detail"])
+
+    def test_min_greater_than_max_returns_400(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=10&max_length=5&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("min_length", r.json()["detail"])
+
+    def test_no_workweek_with_no_policy_returns_400(self):
+        # AQ has no saved policy and no entry in WORKWEEK_FALLBACKS.
+        r = self.client.get(
+            "/v1/plan?country=AQ&year=2026&budget=15"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("workweek", r.json()["detail"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()
