@@ -229,6 +229,7 @@ class TestPlan(unittest.TestCase):
             "/v1/plan?country=KR&year=2026&budget=15"
             "&length=5&top=5&workweek=sat,sun"
         )
+        self.assertEqual(r.status_code, 200)
         entries = r.json()["results_by_length"]["5"]
         if len(entries) < 2:
             self.skipTest("need at least 2 alternatives to compare sort order")
