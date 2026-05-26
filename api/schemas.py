@@ -56,3 +56,21 @@ class SandwichesResponse(BaseModel):
     workweek_source: str
     count: int
     sandwiches: list[SandwichRecord]
+
+
+class PlanTrip(BaseModel):
+    break_start: date
+    break_end: date
+    break_length: int
+    pto_dates: list[date]
+    pto_cost: int
+    anchors: list[str]
+
+
+class PlanResponse(BaseModel):
+    country: str
+    year: int
+    budget: int
+    workweek: list[str]
+    workweek_source: str
+    results_by_length: dict[str, list[PlanTrip]]
