@@ -209,6 +209,35 @@ class TestPlan(unittest.TestCase):
                 self.assertIn("pto_cost", trip)
                 self.assertIn("anchors", trip)
 
+    def test_single_length_with_top_returns_alternatives(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&length=5&top=5&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        # Only key "5" is present, ignoring min/max defaults.
+        self.assertEqual(list(body["results_by_length"].keys()), ["5"])
+        entries = body["results_by_length"]["5"]
+        self.assertLessEqual(len(entries), 5)
+        self.assertGreater(len(entries), 0)
+        for trip in entries:
+            self.assertEqual(trip["break_length"], 5)
+
+    def test_alternatives_sorted_by_pto_cost_ascending(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&length=5&top=5&workweek=sat,sun"
+        )
+        entries = r.json()["results_by_length"]["5"]
+        if len(entries) < 2:
+            self.skipTest("need at least 2 alternatives to compare sort order")
+        for prev, curr in zip(entries, entries[1:]):
+            self.assertLessEqual(prev["pto_cost"], curr["pto_cost"])
+            if prev["pto_cost"] == curr["pto_cost"]:
+                # tie-break: earlier break_start first
+                self.assertLessEqual(prev["break_start"], curr["break_start"])
+
 
 if __name__ == "__main__":
     unittest.main()
