@@ -165,11 +165,12 @@ def _set_to_day_names(weekend_days: set[int]) -> list[str]:
     return [inverse[i] for i in sorted(weekend_days)]
 
 
-def _resolve_workweek_for_sandwiches(country: str, workweek: str | None
-                                     ) -> tuple[set[int], list[str], str]:
+def _resolve_workweek(country: str, workweek: str | None
+                      ) -> tuple[set[int], list[str], str]:
     """Return (weekend_days_int_set, weekend_days_str_list, source_string).
 
     Cascade: explicit param → most recent policy → hardcoded fallback → 400.
+    Shared between /v1/sandwiches and /v1/plan.
     """
     if workweek:
         try:
@@ -202,9 +203,7 @@ def get_sandwiches(country: str, year: int, workweek: str | None = None,
     """Return the /v1/sandwiches response body as a plain dict."""
     cc = _validate_country(country)
     _validate_year(year)
-    weekend_set, weekend_names, source = _resolve_workweek_for_sandwiches(
-        cc, workweek
-    )
+    weekend_set, weekend_names, source = _resolve_workweek(cc, workweek)
 
     lib_records = library_source.fetch(year, cc)
     holiday_name_map = {r["date"]: r["name"] for r in lib_records}
