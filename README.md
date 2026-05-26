@@ -25,7 +25,7 @@ daysoff-api/
 ├── config.py                  # user preferences (forward-compatible backend)
 ├── requirements.txt
 ├── .gitignore
-├── tests/                     # unittest suite (128 tests)
+├── tests/                     # unittest suite (136 tests)
 └── sources/
     ├── library_source.py      # offline `holidays` package (150+ countries)
     ├── gov_api_source.py      # Korea data.go.kr API (needs API key)
@@ -283,8 +283,11 @@ Endpoints (all GET, all public, all under `/v1/`):
 | `/v1/holidays` | `curl 'localhost:8080/v1/holidays?country=KR&year=2026'` |
 | `/v1/compare` | `curl 'localhost:8080/v1/compare?countries=KR,NP&year=2026'` |
 | `/v1/sandwiches` | `curl 'localhost:8080/v1/sandwiches?country=KR&year=2026&workweek=sat,sun'` |
+| `/v1/plan` | `curl 'localhost:8080/v1/plan?country=KR&year=2026&budget=15&min_length=3&max_length=10&workweek=sat,sun'` |
 
-Spec: [`docs/superpowers/specs/2026-05-22-read-api-design.md`](docs/superpowers/specs/2026-05-22-read-api-design.md).
+Specs:
+- [`docs/superpowers/specs/2026-05-22-read-api-design.md`](docs/superpowers/specs/2026-05-22-read-api-design.md) — `/v1/healthz`, countries, holidays, compare, sandwiches.
+- [`docs/superpowers/specs/2026-05-22-plan-endpoint-design.md`](docs/superpowers/specs/2026-05-22-plan-endpoint-design.md) — `/v1/plan`.
 
 OpenAPI docs auto-generated at `/docs` when the server is running.
 
