@@ -104,6 +104,9 @@ python3 planner.py
 # Basic: best plan for 15 PTO days
 python3 planner.py --budget 15 --year 2026 --country KR
 
+# Travel from home KR to NP — see which trips overlap Nepal holidays
+python3 planner.py --budget 15 --country KR --visit NP --from-today
+
 # Future-only + restrict trip lengths
 python3 planner.py --budget 15 --country KR --from-today --min-length 4 --max-length 10
 
@@ -134,6 +137,7 @@ python3 planner.py --budget 15 --country NP --no-auto-refresh
 | `--year YYYY` | current year | Year to plan for |
 | `--country CC` | from config or `KR` | ISO 2-letter code |
 | `--workweek` | config → news → fallback | Comma list of OFF days, e.g. `sat,sun`, `wed,thu`, `sun,thu` |
+| `--visit CC` | from config | Destination country — overlays its red days on each trip (annotation only, doesn't affect PTO math) |
 | `--save` | off | Persist `--budget`, `--country`, `--workweek` to config |
 | `--strategy` | both | `longest` \| `portfolio` \| `both` |
 | `--from-today` | off | Skip past dates |

@@ -82,8 +82,14 @@ def compute_calendar(year: int, country: str, weekend_days: set[int]):
 
 
 def classify_day(d: date, pto_set: set[date], red_days: dict, festivals: dict,
-                 weekend_days: set[int], labels: dict) -> str:
-    """Return the day-type label for a given date in a trip."""
+                 weekend_days: set[int], labels: dict,
+                 visit_red_days: dict | None = None,
+                 visit_country: str | None = None) -> str:
+    """Return the day-type label for a given date in a trip.
+
+    visit_red_days/visit_country are an optional ADDITIVE overlay — they do
+    not replace the primary tag. A day can be 🏖️ PTO AND 🌏 LOCAL HOLIDAY.
+    """
     is_weekend = d.weekday() in weekend_days
     is_red = d in red_days
     is_pto = d in pto_set
@@ -102,6 +108,9 @@ def classify_day(d: date, pto_set: set[date], red_days: dict, festivals: dict,
         parts.append(f"🎎 {f['name_en']}{loc}")
     if not parts:
         parts.append("💼 workday")
+    if visit_red_days and d in visit_red_days:
+        cc = visit_country or "??"
+        parts.append(f"🌏 LOCAL HOLIDAY ({cc}) — {visit_red_days[d]}")
     return " · ".join(parts)
 
 
@@ -190,16 +199,44 @@ def best_portfolio(candidates, budget):
     return selected, dp[n][budget]
 
 
-def print_trip(trip, red_days, festivals, weekend_days, labels):
-    """Print a single trip with day-by-day classification."""
+def print_trip(trip, red_days, festivals, weekend_days, labels,
+               visit_red_days=None, visit_country=None):
+    """Print a single trip with day-by-day classification.
+
+    visit_red_days/visit_country are optional. When supplied, days inside
+    the trip that match visit red days get an additive 🌏 tag, and a
+    summary line lists the in-country holidays.
+    """
     pto_set = set(trip["pto"])
     print(f"\n  ┌─ {trip['start'].strftime('%a')} {trip['start']} "
           f"→ {trip['end'].strftime('%a')} {trip['end']}  "
           f"({trip['length']} days, {trip['cost']} PTO)")
     for d in daterange(trip["start"], trip["end"]):
-        label = classify_day(d, pto_set, red_days, festivals, weekend_days, labels)
+        label = classify_day(d, pto_set, red_days, festivals, weekend_days,
+                             labels, visit_red_days, visit_country)
         print(f"  │  {d.strftime('%a')} {d}  {label}")
     print(f"  └─ Take {trip['cost']} PTO day(s)")
+    if visit_red_days:
+        overlap = visit_overlap(trip, visit_red_days)
+        if overlap:
+            joined = ", ".join(f"{d} {name}" for d, name in overlap)
+            cc = visit_country or "??"
+            print(f"  In-country {cc} holidays during this trip: {joined}")
+
+
+def visit_overlap(trip: dict, visit_red_days: dict) -> list[tuple[date, str]]:
+    """Return [(date, name), ...] for visit-country red days inside the trip.
+
+    Pure helper — testable without I/O. Inclusive at both trip endpoints.
+    Result is sorted by date.
+    """
+    if not visit_red_days:
+        return []
+    start, end = trip["start"], trip["end"]
+    return sorted(
+        (d, name) for d, name in visit_red_days.items()
+        if start <= d <= end
+    )
 
 
 def print_nearby_festivals(start: date, end: date, festivals: dict, window: int = 7):
@@ -243,6 +280,9 @@ def main():
     ap.add_argument("--year", type=int, default=date.today().year)
     ap.add_argument("--country", default=saved_country,
                     help="ISO 2-letter code (KR, JP, NP, ...)")
+    ap.add_argument("--visit", default=cfg.get("visit"),
+                    help="Destination country (ISO 2-letter). Overlays "
+                         "its red days as annotations onto each trip.")
     ap.add_argument("--save", action="store_true",
                     help="Save current --budget, --country, --workweek "
                          "to ~/.daysoff/config.json")
@@ -313,19 +353,36 @@ def main():
             return
 
     if args.save:
-        user_config.save({
+        updates = {
             "country": args.country,
             "budget": args.budget,
             "workweeks": {args.country: workweek_spec},
-        })
+        }
+        if args.visit:
+            updates["visit"] = args.visit.upper()
+        user_config.save(updates)
+        saved_visit = f", visit={args.visit.upper()}" if args.visit else ""
         print(f"✅ Saved to ~/.daysoff/config.json: "
               f"country={args.country}, budget={args.budget}, "
-              f"workweek({args.country})={workweek_spec}\n")
+              f"workweek({args.country})={workweek_spec}{saved_visit}\n")
 
     weekend_days = parse_workweek(workweek_spec)
     labels = LOCALE_LABELS.get(args.country, DEFAULT_LABELS)
 
     off_days, red_days, festivals = compute_calendar(args.year, args.country, weekend_days)
+
+    visit_red_days: dict = {}
+    visit_country = None
+    if args.visit and args.visit.upper() != args.country.upper():
+        visit_country = args.visit.upper()
+        try:
+            visit_records = library_source.fetch(args.year, visit_country)
+            visit_red_days = {r["date"]: r["name"] for r in visit_records}
+        except NotImplementedError:
+            print(f"\n⚠️  --visit {visit_country}: not supported by the "
+                  f"holidays library. Continuing without overlay.\n")
+            visit_country = None
+
     candidates = candidate_breaks(args.year, off_days, args.budget,
                                   max_break_len=args.max_length)
     if args.from_today:
@@ -355,7 +412,8 @@ def main():
         print(f"  🏆 LONGEST SINGLE BREAK")
         print(f"{'━' * 64}")
         if longest:
-            print_trip(longest, red_days, festivals, weekend_days, labels)
+            print_trip(longest, red_days, festivals, weekend_days, labels,
+                       visit_red_days, visit_country)
             if args.show_festivals_near > 0:
                 print_nearby_festivals(
                     longest["start"], longest["end"], festivals,
@@ -372,7 +430,8 @@ def main():
               f"{total_off} off-days, {used}/{args.budget} PTO used")
         print(f"{'━' * 64}")
         for p in portfolio:
-            print_trip(p, red_days, festivals, weekend_days, labels)
+            print_trip(p, red_days, festivals, weekend_days, labels,
+                       visit_red_days, visit_country)
             if args.show_festivals_near > 0:
                 print_nearby_festivals(
                     p["start"], p["end"], festivals,

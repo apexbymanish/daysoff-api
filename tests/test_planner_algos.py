@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from planner import (
     parse_workweek, daterange, candidate_breaks,
     best_single_break, best_portfolio, classify_day,
+    visit_overlap,
     DEFAULT_LABELS,
 )
 
@@ -296,6 +297,121 @@ class TestCandidateBreaks(unittest.TestCase):
         result = candidate_breaks(2026, off, budget=2, max_break_len=10)
         for c in result:
             self.assertLessEqual(c["cost"], 2)
+
+
+# ─── classify_day with visit-country overlay ─────────────────────────────
+
+class TestClassifyDayVisit(unittest.TestCase):
+    def test_visit_red_day_adds_overlay_tag(self):
+        # Workday in home country that is a red day in visit country
+        label = classify_day(
+            date(2026, 10, 12),  # Mon — home workday
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={date(2026, 10, 12): "Dashain"},
+            visit_country="NP",
+        )
+        self.assertIn("LOCAL HOLIDAY", label)
+        self.assertIn("Dashain", label)
+        self.assertIn("NP", label)
+
+    def test_visit_overlay_does_not_replace_primary_tag(self):
+        # PTO day that is also red in visit country → both tags
+        label = classify_day(
+            date(2026, 10, 12),
+            pto_set={date(2026, 10, 12)},
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={date(2026, 10, 12): "Dashain"},
+            visit_country="NP",
+        )
+        self.assertIn("PTO", label)
+        self.assertIn("LOCAL HOLIDAY", label)
+        self.assertIn("Dashain", label)
+
+    def test_no_overlay_when_visit_red_days_empty(self):
+        label = classify_day(
+            date(2026, 10, 12),
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+            visit_red_days={},
+            visit_country="NP",
+        )
+        self.assertNotIn("LOCAL HOLIDAY", label)
+
+    def test_omitted_visit_args_preserve_legacy_behavior(self):
+        # Calling classify_day without the new kwargs must still work
+        label = classify_day(
+            date(2026, 5, 14),
+            pto_set=set(),
+            red_days={},
+            festivals={},
+            weekend_days={5, 6},
+            labels=DEFAULT_LABELS,
+        )
+        self.assertIn("workday", label)
+        self.assertNotIn("LOCAL HOLIDAY", label)
+
+
+# ─── visit_overlap ───────────────────────────────────────────────────────
+
+class TestVisitOverlap(unittest.TestCase):
+    def _trip(self, start_str, end_str):
+        return {
+            "start": date.fromisoformat(start_str),
+            "end": date.fromisoformat(end_str),
+            "pto": [], "cost": 0, "length": 1,
+        }
+
+    def test_no_visit_red_days_returns_empty(self):
+        trip = self._trip("2026-10-10", "2026-10-15")
+        self.assertEqual(visit_overlap(trip, {}), [])
+
+    def test_returns_only_dates_inside_trip(self):
+        trip = self._trip("2026-10-10", "2026-10-15")
+        visit_red = {
+            date(2026, 10, 9): "Before",
+            date(2026, 10, 12): "Dashain",
+            date(2026, 10, 13): "Vijaya Dashami",
+            date(2026, 10, 16): "After",
+        }
+        result = visit_overlap(trip, visit_red)
+        self.assertEqual(
+            result,
+            [(date(2026, 10, 12), "Dashain"),
+             (date(2026, 10, 13), "Vijaya Dashami")],
+        )
+
+    def test_inclusive_at_both_endpoints(self):
+        trip = self._trip("2026-10-10", "2026-10-15")
+        visit_red = {
+            date(2026, 10, 10): "Start",
+            date(2026, 10, 15): "End",
+        }
+        result = visit_overlap(trip, visit_red)
+        self.assertEqual(
+            result,
+            [(date(2026, 10, 10), "Start"),
+             (date(2026, 10, 15), "End")],
+        )
+
+    def test_sorted_by_date(self):
+        trip = self._trip("2026-10-10", "2026-10-15")
+        visit_red = {
+            date(2026, 10, 14): "Later",
+            date(2026, 10, 11): "Earlier",
+        }
+        result = visit_overlap(trip, visit_red)
+        self.assertEqual([d for d, _ in result],
+                         [date(2026, 10, 11), date(2026, 10, 14)])
 
 
 if __name__ == "__main__":

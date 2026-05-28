@@ -16,6 +16,7 @@ Stable keys (documented schema — don't invent new ones casually):
     budget       int     — number of PTO days available
     country      str     — ISO 2-letter country code (KR, NP, JP, ...)
     workweeks    dict    — {country_code: workweek_spec}, e.g. {"KR": "wed,thu"}
+    visit        str     — default destination country for --visit overlay
 """
 import json
 import os
