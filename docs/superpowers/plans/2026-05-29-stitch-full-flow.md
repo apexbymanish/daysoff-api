@@ -14,6 +14,22 @@
 
 ---
 
+## Build progress (2026-05-29)
+
+- **Stitch project:** `daysoff — Full Flow` — id `16582546525290536744`
+- **Design system applied:** `Serene Interval` (asset `b725c78966614a169cd7fb97e49645b0`) — derived from "Serene Efficiency", identical teal `#1a4d4e` / sage `#8e9775` palette, Manrope + JetBrains Mono. Pass this as `designSystem` on all generations for consistency.
+- **Generation lesson:** generate **one screen per call** (parallel firing loses screens); simple screens return synchronously with an ID, data-heavy screens (timelines/calendars/heroes) time out but still generate — verify those in the UI (`list_screens`/`get_project` were badly lagged during this run).
+
+**Confirmed generated (synchronous IDs):** C1 Foundations, C2 Components, 1.0 Welcome, 1.1 Country pick, 1.3 Sign up, 1.4 Log in, 1.5 Forgot password, 2.S Home empty, 2.S Home error, 3.3 Sandwich days, 3.S Plan empty, 4.1 Save preview, 4.2 Calendar write success, 4.3 Reminder set, 4.4 Saved & Reminders.
+
+**Fired but timed out (verify in UI, regenerate if missing):** 1.2 Guest Home preview, 2.1 Home timeline, 2.2 Home calendar view, 2.3 Holiday detail sheet, 2.S Home loading, 3.1 Plan length buffet, 3.2 Break detail, 3.4 Workweek override.
+
+**Not yet generated (prompts ready in sessions below):** 3.S Plan loading, 3.S Plan error, 4.5 Connect prime, 4.6 Permission denied, 4.7 Calendar picker, 4.S conflict, 5.1 Settings, 5.2 Workweek editor, 5.3 Budget editor, 5.4 Residence editor, 5.5 Profile, 5.6 Confirm dialog, 6.1 Home dark, 6.2 Break detail dark.
+
+**Known cosmetic fixes for an `edit_screens` pass:** "spa daysoff" logo glyph artifact (1.3), oversized "GOOGLE" wordmark (1.4), stray "Premium time-tracking" tagline (1.4); 1.5 success-confirmation panel didn't render.
+
+---
+
 ## File Structure (prompt pack)
 
 The pack drives generation. Paste order per session: `master.md` first, then the screen file.

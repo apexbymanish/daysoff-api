@@ -24,6 +24,18 @@ for the least cost?"*
 2. **Smart PTO suggestions** — given a PTO budget (say 15 days), show the
    best ways to chain PTO with holidays + weekends for long breaks.
 
+**Navigation.** Three bottom tabs: **Home** (holiday timeline), **Plan**,
+**Settings**. There is no Sandwich tab — sandwich-day detection lives as a
+**section inside the Plan tab**. Saved breaks and reminders live on a
+**Saved & Reminders** screen reachable from the Home header (not a tab).
+
+**Value-first entry.** A new user picks a country and immediately browses
+the holiday timeline and a teaser plan **as a guest, with no account**.
+The public read-only API makes this possible. An account is required only
+to **save breaks, sync the calendar, and persist preferences across
+devices** — those actions trigger a contextual sign-up. Do not gate the
+core "aha" (long break for little PTO) behind a signup wall.
+
 **Three primary user flows.**
 
 1. **Browse holidays.** User picks a country + year, sees a vertical
@@ -40,10 +52,18 @@ for the least cost?"*
    which are weekend, which are holiday), and view alternative
    same-length breaks ranked by cheapest PTO cost.
 
-3. **Sandwich-day detector.** Show single workdays wedged between
-   off-days (e.g., "Tuesday between Memorial Day Monday and the
-   weekend"). One-tap "save this PTO day" mock action that triggers
-   a future reminder.
+3. **Sandwich-day detector** (a **section within the Plan tab**, not its
+   own tab). Show single workdays wedged between off-days (e.g., "Tuesday
+   between Memorial Day Monday and the weekend"). One-tap "save this PTO
+   day" sets a local reminder.
+
+**Saving & reminders.** Saving a break previews the exact events **before**
+writing them to the user's calendar, confirms with an exact count ("Added
+1 event"), and offers **undo**. Conflicts with personal calendar events are
+warned, never silently overwritten. Saving a break or PTO day can also set a
+**local/calendar reminder** (e.g., "nudge me two weeks before to request the
+day off"). Saved breaks and PTO days, with their reminder status, are
+collected on the **Saved & Reminders** screen.
 
 **Visual style direction.**
 
@@ -62,6 +82,13 @@ for the least cost?"*
   empty states or onboarding). Use a clean monoline icon set.
 - Light + dark mode. Dark mode should feel like Apple Calendar's dark
   mode — nearly black, with the accent color popping.
+- **Scenery as accent.** Scenic/festival photography appears only on
+  emotional/payoff moments: the Welcome splash, holiday & break **detail
+  heroes**, and as a calm **empty-state backdrop**. Lists, timeline, and the
+  plan buffet stay clean and data-dense. Any text over photography sits on a
+  gradient scrim for legibility (critical in dark mode). The contrast between
+  minimal data screens and a few rich scenic moments is what reads premium —
+  not a stock-photo travel app.
 
 **Tone of microcopy.**
 
@@ -76,10 +103,13 @@ for the least cost?"*
 
 **Hard requirements.**
 
-- **Account required.** Users sign up (or sign in) before the app is
-  usable. Preferences (country, workweek, budget) are tied to the
-  account and sync across devices. Auth supports email + password
-  and social sign-in (Google, Apple).
+- **Account is contextual, not a gate.** Browsing holidays and previewing
+  plans works with no account. Sign-up/sign-in is triggered only when the
+  user **saves a break, syncs the calendar, or wants prefs to persist
+  across devices**. Preferences (country, workweek, budget) are tied to the
+  account once created and sync across devices. Auth supports email +
+  password and social sign-in (Google, Apple). A guest's chosen country and
+  in-session prefs carry into the account on signup.
 - **Country of work** drives planning — the holidays that grant the
   user free days come from this country, and the workweek picker
   defaults from it. The country picker must include at minimum: KR
@@ -104,8 +134,9 @@ for the least cost?"*
 
 **Non-goals (v1).**
 
-- No social features, no sharing, no team/manager view, no push
-  notifications, no in-app purchases. All of that is v2+.
+- No social features, no sharing, no team/manager view, no **marketing
+  push notifications** (local/calendar reminders ARE in scope), no in-app
+  purchases. All of that is v2+.
 
 ---
 
