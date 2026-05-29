@@ -26,7 +26,7 @@
 
 **Not yet generated (prompts ready in sessions below):** 3.S Plan loading, 3.S Plan error, 4.5 Connect prime, 4.6 Permission denied, 4.7 Calendar picker, 4.S conflict, 5.1 Settings, 5.2 Workweek editor, 5.3 Budget editor, 5.4 Residence editor, 5.5 Profile, 5.6 Confirm dialog, 6.1 Home dark, 6.2 Break detail dark.
 
-**Known cosmetic fixes for an `edit_screens` pass:** "spa daysoff" logo glyph artifact (1.3), oversized "GOOGLE" wordmark (1.4), stray "Premium time-tracking" tagline (1.4); 1.5 success-confirmation panel didn't render.
+**Cosmetic fixes — DONE (`edit_screens`, 2026-05-29):** ✅ 1.3 "spa daysoff" → clean "daysoff" wordmark; ✅ 1.4 oversized "GOOGLE" → Google "G" glyph + removed "Premium time-tracking" tagline + clean wordmark; ✅ 1.5 added success-confirmation panel (sage check, "Back to sign in"). Note: `edit_screens` returns compact DOM diffs synchronously — cheap and reliable, good for further polish.
 
 ---
 
