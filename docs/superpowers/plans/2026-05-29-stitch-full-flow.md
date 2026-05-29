@@ -22,9 +22,13 @@
 
 **Confirmed generated (synchronous IDs):** C1 Foundations, C2 Components, 1.0 Welcome, 1.1 Country pick, 1.3 Sign up, 1.4 Log in, 1.5 Forgot password, 2.S Home empty, 2.S Home error, 3.3 Sandwich days, 3.S Plan empty, 4.1 Save preview, 4.2 Calendar write success, 4.3 Reminder set, 4.4 Saved & Reminders.
 
-**Fired but timed out (verify in UI, regenerate if missing):** 1.2 Guest Home preview, 2.1 Home timeline, 2.2 Home calendar view, 2.3 Holiday detail sheet, 2.S Home loading, 3.1 Plan length buffet, 3.2 Break detail, 3.4 Workweek override.
+**Confirmed generated — Session 6 (synchronous IDs):** 4.6 Permission denied, 5.1 Settings, 6.1 Home timeline (dark), 5.6 Confirm dialog (sign out).
 
-**Not yet generated (prompts ready in sessions below):** 3.S Plan loading, 3.S Plan error, 4.5 Connect prime, 4.6 Permission denied, 4.7 Calendar picker, 4.S conflict, 5.1 Settings, 5.2 Workweek editor, 5.3 Budget editor, 5.4 Residence editor, 5.5 Profile, 5.6 Confirm dialog, 6.1 Home dark, 6.2 Break detail dark.
+**Fired but timed out (verify in UI, regenerate if missing):** 1.2 Guest Home preview, 2.1 Home timeline, 2.2 Home calendar view, 2.3 Holiday detail sheet, 2.S Home loading, 3.1 Plan length buffet, 3.2 Break detail, 3.4 Workweek override, 4.5 Connect prime, 4.7 Calendar picker, 4.S conflict, 6.2 Break detail (dark), 5.5 Profile.
+
+**Intentionally skipped (low-value duplicates of existing patterns):** 5.2 Workweek editor (≈ 3.4 Workweek override), 5.3 Budget editor (slider already in C2 + onboarding), 5.4 Residence editor (country picker = 1.1 pattern), 3.S Plan loading + 3.S Plan error (mirror the Home loading/error states). Generate later only if a standalone screen is wanted.
+
+**Tally:** ~32 of 39 screens generated/fired (19 confirmed synchronous + 13 fired/timed-out); 5 intentionally skipped as duplicates. Effectively the full app surface.
 
 **Cosmetic fixes — DONE (`edit_screens`, 2026-05-29):** ✅ 1.3 "spa daysoff" → clean "daysoff" wordmark; ✅ 1.4 oversized "GOOGLE" → Google "G" glyph + removed "Premium time-tracking" tagline + clean wordmark; ✅ 1.5 added success-confirmation panel (sage check, "Back to sign in"). Note: `edit_screens` returns compact DOM diffs synchronously — cheap and reliable, good for further polish.
 
