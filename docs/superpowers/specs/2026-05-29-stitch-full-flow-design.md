@@ -26,6 +26,36 @@ pasting. This spec covers the full flow and is generated via the **Stitch MCP**.
 | **Dark mode** | **2-screen showcase** (Home timeline + Break detail). Not every screen. |
 | **Platform** | Mobile / iOS-style (matches existing design system + all existing screens). |
 
+### UX design decisions (design-critique pass)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Value-first entry** | Let users pick a country and **browse holidays + a teaser plan before signup**. Gate only saving, calendar sync, and cross-device prefs. | The "aha" (long break for little PTO) sells the signup; hiding it behind an account wall kills conversion. The holiday API is public read-only anyway. |
+| **Minimal onboarding** | Ask **country only** up front. Infer workweek from country, default budget to 15 ("change anytime"), defer residence to a contextual later prompt. Workweek/budget/residence become **Settings editors**, not linear onboarding steps. | Progressive disclosure + smart defaults — fastest path to value. |
+| **Sandwich = section, not tab** | 3-tab IA (**Home / Plan / Settings**). Sandwich-day detection lives **inside Plan** as a section. | Sandwich is a mode of planning, not a peer destination; tab bars get muddy past 4. |
+| **Saved & Reminders** | Saved breaks + saved PTO days (with reminders) live on a **"Saved & Reminders"** screen reachable from the Home header — not a 4th tab. | Reminders need a real home without breaking the 3-tab IA. |
+| **Reminders scope** | **Local / calendar-based reminders** (the "save this PTO day → reminder" action). NOT marketing push notifications (still a non-goal). | Honors master.md non-goals while delivering the requested reminder feature. |
+| **Reversible calendar writes** | Saving a break **previews events before write**, confirms *"Added N events,"* and offers **undo**. Warn on conflicts with personal events. | Silently mutating a user's real calendar erodes trust; preview + undo is the safe pattern. |
+
+### Per-screen craft patterns (applied throughout)
+
+- **Outcome-first cards** — hero the break *length* ("9-day break"), then dates,
+  then PTO cost as satisfying small print. **"Best value" badge** on the
+  highest-leverage option (most days off per PTO day).
+- **Empty-state-as-CTA** — e.g. "No breaks within budget" → *"Bump budget to 18
+  → unlocks a 9-day Chuseok break."*
+- **Pre-permission priming** — never trigger the OS calendar dialog cold; prime
+  with value first.
+- **Redundant encoding** — never rely on hue alone (sage PTO / sand free-day /
+  red holiday / gray workday); always pair color with icon or label
+  (~8% red-green colorblind).
+- **Locale hierarchy** — decide which script leads per locale (e.g. Hangul
+  primary for KR users), not English-with-a-translation-appended.
+- **Skeletons over spinners** on data-heavy screens; **persist view preference**
+  (timeline ⇄ calendar toggle remembered).
+- **Benefit-led microcopy** — concrete dates, no exclamation marks, treat the
+  user like a busy adult (per master.md voice).
+
 ## Design system
 
 Reuse the existing **"Serene Efficiency"** design system already embedded in
@@ -45,86 +75,96 @@ shapes: `docs/stitch/master.md`. Sample data convention: **South Korea, 2026**
 - `edit_screens` for iteration, `generate_variants` for alternatives.
 - Each call returns a screen ID + screenshot URL for review.
 
-## Screen inventory (~37 screens)
+## Screen inventory (~38 screens)
 
 Numbering reflects generation/journey order. "State" rows are separate screens.
 
 ### 0 · Component Catalog *(generated first)*
 - **C1 Foundations** — color tokens, type scale, spacing rhythm, iconography.
 - **C2 Components** — buttons (primary / secondary / disabled), inputs
-  (default / focus / error), holiday card (free-day / absorbed / weekend
-  variants), break card with sparkline mini-map, budget slider, status badges
-  (sage PTO / sand free-day), bottom sheet, tab bar, segmented toggle, dashed
-  sandwich-day card, and empty / loading / error blocks.
+  (default / focus / error), holiday card (free-day / absorbed / weekend),
+  break card with sparkline + "best value" badge, budget slider, status badges
+  (sage PTO / sand free-day), reminder row, bottom sheet, tab bar, segmented
+  toggle, dashed sandwich-day card, guest/upsell banner, undo toast, and
+  empty / loading / error blocks.
 
-### 1 · Auth & Onboarding
-- **1.1** Onboarding carousel (welcome + value props).
-- **1.2** Sign Up — email + password, Google + Apple social sign-in.
-- **1.3** Log In.
-- **1.4** Forgot Password.
-- **1.5** Country-of-Work picker — searchable, 250+ countries, KR/NP/JP/IN/PH
-  pinned. Drives holiday data + workweek default.
-- **1.6** Workweek selector — defaults from country, always overridable
-  (Mon–Fri / Sun–Thu / Fri–Sat cases).
-- **1.7** PTO Budget — slider 3–25 days.
-- **1.8** Country-of-Residence — optional, skippable (expat overlay source).
-- **State** 1.S-load — Sign Up loading / submitting.
+### 1 · Entry & Auth *(value-first)*
+- **1.1** First-launch country pick — searchable, 250+ countries,
+  KR/NP/JP/IN/PH pinned. The single up-front step; no account required.
+- **1.2** Guest Home preview — browsing as guest, with subtle "sign up to save"
+  affordances on gated actions.
+- **1.3** Sign Up — email + password, Google + Apple; **contextual** (triggered
+  when a guest taps save / sync).
+- **1.4** Log In.
+- **1.5** Forgot Password.
+- **State** 1.S-load — auth submitting.
 - **State** 1.S-err — auth error (invalid credentials).
 
 ### 2 · Home / Holiday Timeline
-- **2.1** Timeline — vertical, grouped by month, holiday cards showing
-  date + weekday + name (English + local script), free-day (happy) vs absorbed
-  (sad) icon; optional residence-country overlay (distinct treatment).
-- **2.2** Calendar view — month grid (toggle from timeline).
+- **2.1** Timeline — vertical, grouped by month; holiday cards show
+  date + weekday + name (local script primary + English), free-day (happy) vs
+  absorbed (sad) icon; optional residence-country overlay (distinct treatment);
+  header entry to **Saved & Reminders**.
+- **2.2** Calendar view — month grid (toggle from timeline; preference persisted).
 - **2.3** Holiday detail **bottom sheet** — on tapping a holiday.
 - **State** 2.S-load — skeleton timeline.
-- **State** 2.S-empty — unsupported year / no holidays.
+- **State** 2.S-empty — unsupported year / no holidays (empty-as-CTA).
 - **State** 2.S-err — failed to load holidays.
 
 ### 3 · Plan
 - **3.1** Length Buffet — budget slider + horizontal carousel of best break of
-  each length (3–10 days), each card: dates, length, PTO cost, anchor holidays.
+  each length (3–10 days); outcome-first cards (length → dates → PTO cost);
+  "best value" badge.
 - **3.2** Break Detail — day-by-day breakdown (PTO / weekend / holiday),
   anchors, and ranked same-length alternatives by cheapest PTO cost.
-- **3.3** Workweek override — inline selector on the Plan surface.
+- **3.3** Sandwich section — single workdays wedged between off-days, with
+  one-tap "save this PTO day" (lives inside Plan, not a tab).
+- **3.4** Workweek override — inline selector on the Plan surface.
 - **State** 3.S-load — computing plan.
-- **State** 3.S-empty — no breaks within budget.
+- **State** 3.S-empty — no breaks within budget (empty-as-CTA: suggest a budget bump).
 - **State** 3.S-err — plan request failed.
 
-### 4 · Sandwich
-- **4.1** Sandwich Detector — single workdays wedged between off-days, with
-  one-tap "save this PTO day".
-- **4.2** Save-PTO **success** — confirmation (saved, reminder set).
-- **State** 4.S-empty — no sandwich days this year.
+### 4 · Save, Calendar & Reminders
+- **4.1** Save break — **preview the events before writing** (reversible pattern).
+- **4.2** Calendar write **success** — "Added N events to your calendar" + undo.
+- **4.3** Reminder **set** confirmation — PTO day / break reminder.
+- **4.4** Saved & Reminders list — saved breaks + saved sandwich PTO days, each
+  with reminder status; reachable from the Home header.
+- **4.5** Connect Calendar — permission prime (why connect; deferred + optional).
+- **4.6** Permission **denied** — how to enable in Settings.
+- **4.7** Calendar picker — which calendars to read.
+- **State** 4.S-conflict — planned break overlaps a personal event (warning).
 
-### 5 · Connect Calendar (Apple Calendar / EventKit)
-- **5.1** Permission prime — why connect, deferred + optional.
-- **5.2** Permission **denied** — how to enable in Settings.
-- **5.3** Calendar picker — which calendars to read.
-- **5.4** Synced **success** — break written back as a multi-day event.
+### 5 · Settings & Account
+- **5.1** Settings — country of work, workweek, budget, residence, calendar
+  integration, reminder prefs, theme, locale.
+- **5.2** Workweek editor — defaults from country, always overridable
+  (Mon–Fri / Sun–Thu / Fri–Sat).
+- **5.3** PTO budget editor — slider 3–25 days.
+- **5.4** Country-of-residence editor — optional (expat overlay source).
+- **5.5** Profile / Account — email, linked social accounts, sign out.
+- **5.6** Confirm dialog (modal) — sign out / disconnect calendar / delete reminder.
 
-### 6 · Settings & Account
-- **6.1** Settings — country, workweek, budget, residence, calendar
-  integration, theme, locale.
-- **6.2** Profile / Account — email, linked social accounts, sign out.
-- **6.3** Confirm dialog (modal) — sign out / disconnect calendar.
-
-### 7 · Dark-mode showcase
-- **7.1** Home timeline (dark).
-- **7.2** Break detail (dark).
+### 6 · Dark-mode showcase
+- **6.1** Home timeline (dark).
+- **6.2** Break detail (dark).
 
 ## Out of scope (v1, per master.md non-goals)
 
-Social features, sharing, team/manager view, push notifications, in-app
-purchases, country comparison (`/v1/compare`) UI, and dark variants beyond the
-2-screen showcase.
+Social features, sharing, team/manager view, **marketing push notifications**
+(local/calendar reminders ARE in scope), in-app purchases, country comparison
+(`/v1/compare`) UI, and dark variants beyond the 2-screen showcase.
 
 ## Success criteria
 
 - Fresh Stitch project with the Serene Efficiency design system applied.
-- All ~37 screens generated with clean, journey-ordered naming.
+- All ~38 screens generated with clean, journey-ordered naming.
 - Component catalog generated first; later screens visually consistent with it.
+- Value-first entry: holidays + teaser plan browsable before signup; auth is
+  contextual on save/sync.
 - Critical states + loading/skeleton present for the data-heavy surfaces.
+- Calendar writes are previewed + reversible; reminders have a home (Saved
+  & Reminders).
 - Each screen uses realistic Korea-2026 sample data, not placeholder text.
 
 ## Open questions
