@@ -156,6 +156,22 @@ Numbering reflects generation/journey order. "State" rows are separate screens.
 - **5.5** Profile / Account — email, linked social accounts, sign out.
 - **5.6** Confirm dialog (modal) — sign out / disconnect calendar / delete reminder.
 
+### 5b · Block-a-date (personal commitments) — added 2026-05-29
+- **5b.1** Block-a-date sheet — tapping a date (on Home timeline/calendar)
+  opens a bottom sheet: "Mark **Mon Sep 22** as busy?" with an optional
+  one-line note field ("Friends meeting", "Birthday party · 7pm") and a
+  primary "Block this day" + "Cancel". Works for guests (no account/calendar
+  needed).
+- Behavior (no new screen, applied to existing surfaces): blocked dates show
+  a small "busy" dot/marker on Home (2.1/2.2); the Plan engine **skips breaks
+  that overlap a blocked date** (reuses the 4.S conflict pattern); blocked
+  dates appear as an editable "Busy dates" group in **Saved & Reminders**
+  (4.4). For connected-calendar users this layers on top of the read-only
+  event overlay — both feed the same conflict-awareness.
+- Scope guard: lightweight marker only (date + optional note), NOT a full
+  event editor with times/recurrence — for that, users connect their real
+  calendar. Keeps daysoff from becoming a second calendar to maintain.
+
 ### 6 · Dark-mode showcase
 - **6.1** Home timeline (dark).
 - **6.2** Break detail (dark).

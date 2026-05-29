@@ -132,6 +132,17 @@ collected on the **Saved & Reminders** screen.
   deferred + optional — the app works fully without it. The integration
   is configured on Screen 9 (Connect calendar) and managed in Settings.
 
+- **Block-a-date (works without a connected calendar).** Any user — guest
+  or signed-in — can tap a date and mark it **"Busy"** (an optional one-line
+  note like "Friends meeting" or "Birthday party · May 29, 7pm" is allowed
+  but not required). Blocked dates show a small "busy" marker on Home, and
+  the planner **avoids suggesting breaks that overlap them** — the same
+  conflict-awareness the connected calendar provides, but for people who
+  haven't connected one. Blocked dates are listed and editable in
+  Saved & Reminders. This is a lightweight personal-commitment marker, NOT
+  a full calendar/event editor — daysoff never becomes a second calendar to
+  maintain; for rich events, users connect their real calendar.
+
 **Non-goals (v1).**
 
 - No social features, no sharing, no team/manager view, no **marketing
