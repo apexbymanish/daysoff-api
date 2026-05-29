@@ -36,6 +36,7 @@ pasting. This spec covers the full flow and is generated via the **Stitch MCP**.
 | **Saved & Reminders** | Saved breaks + saved PTO days (with reminders) live on a **"Saved & Reminders"** screen reachable from the Home header — not a 4th tab. | Reminders need a real home without breaking the 3-tab IA. |
 | **Reminders scope** | **Local / calendar-based reminders** (the "save this PTO day → reminder" action). NOT marketing push notifications (still a non-goal). | Honors master.md non-goals while delivering the requested reminder feature. |
 | **Reversible calendar writes** | Saving a break **previews events before write**, confirms *"Added N events,"* and offers **undo**. Warn on conflicts with personal events. | Silently mutating a user's real calendar erodes trust; preview + undo is the safe pattern. |
+| **Scenery as accent** | Scenic/festival photography appears on **emotional/payoff moments only**: a Welcome splash, holiday & break **detail heroes**, and as a **calm backdrop in empty states** (CTA stays the headline). Timeline, plan buffet, and lists stay clean and data-dense. | The Serene Efficiency system is minimal + Linear-density; pervasive photography fights it. Accent-only contrast reads premium, not like a stock-photo travel app. Destination/inspiration gallery and a seasonal showcase board are **out** (v2 / marketing, not in-app). |
 
 ### Per-screen craft patterns (applied throughout)
 
@@ -55,6 +56,11 @@ pasting. This spec covers the full flow and is generated via the **Stitch MCP**.
   (timeline ⇄ calendar toggle remembered).
 - **Benefit-led microcopy** — concrete dates, no exclamation marks, treat the
   user like a busy adult (per master.md voice).
+- **Text-over-image scrim** — any text on scenic photography sits on a
+  gradient/scrim for legibility (critical in dark mode). For mockups, reuse the
+  scenic imagery already generated in project `18267593872196417998`
+  (Chuseok Hanok, Himalayas, Kyoto Zen garden, Kerala backwaters, etc.).
+  Production needs a real per-holiday image strategy (curated set + fallback).
 
 ## Design system
 
@@ -75,7 +81,7 @@ shapes: `docs/stitch/master.md`. Sample data convention: **South Korea, 2026**
 - `edit_screens` for iteration, `generate_variants` for alternatives.
 - Each call returns a screen ID + screenshot URL for review.
 
-## Screen inventory (~38 screens)
+## Screen inventory (~39 screens)
 
 Numbering reflects generation/journey order. "State" rows are separate screens.
 
@@ -89,6 +95,8 @@ Numbering reflects generation/journey order. "State" rows are separate screens.
   empty / loading / error blocks.
 
 ### 1 · Entry & Auth *(value-first)*
+- **1.0** Welcome — full-bleed **scenic** splash (calm, aspirational) with the
+  value prop and a single "Get started" CTA into country pick.
 - **1.1** First-launch country pick — searchable, 250+ countries,
   KR/NP/JP/IN/PH pinned. The single up-front step; no account required.
 - **1.2** Guest Home preview — browsing as guest, with subtle "sign up to save"
@@ -106,17 +114,20 @@ Numbering reflects generation/journey order. "State" rows are separate screens.
   absorbed (sad) icon; optional residence-country overlay (distinct treatment);
   header entry to **Saved & Reminders**.
 - **2.2** Calendar view — month grid (toggle from timeline; preference persisted).
-- **2.3** Holiday detail **bottom sheet** — on tapping a holiday.
+- **2.3** Holiday detail **bottom sheet** — on tapping a holiday; **scenic
+  festival hero** tied to the holiday (e.g. Chuseok → Hanok courtyard).
 - **State** 2.S-load — skeleton timeline.
-- **State** 2.S-empty — unsupported year / no holidays (empty-as-CTA).
+- **State** 2.S-empty — unsupported year / no holidays (empty-as-CTA, calm
+  scenic backdrop).
 - **State** 2.S-err — failed to load holidays.
 
 ### 3 · Plan
 - **3.1** Length Buffet — budget slider + horizontal carousel of best break of
   each length (3–10 days); outcome-first cards (length → dates → PTO cost);
   "best value" badge.
-- **3.2** Break Detail — day-by-day breakdown (PTO / weekend / holiday),
-  anchors, and ranked same-length alternatives by cheapest PTO cost.
+- **3.2** Break Detail — **scenic hero** of the anchor holiday, then day-by-day
+  breakdown (PTO / weekend / holiday), anchors, and ranked same-length
+  alternatives by cheapest PTO cost.
 - **3.3** Sandwich section — single workdays wedged between off-days, with
   one-tap "save this PTO day" (lives inside Plan, not a tab).
 - **3.4** Workweek override — inline selector on the Plan surface.
@@ -153,12 +164,17 @@ Numbering reflects generation/journey order. "State" rows are separate screens.
 
 Social features, sharing, team/manager view, **marketing push notifications**
 (local/calendar reminders ARE in scope), in-app purchases, country comparison
-(`/v1/compare`) UI, and dark variants beyond the 2-screen showcase.
+(`/v1/compare`) UI, dark variants beyond the 2-screen showcase, a **destination
+/ travel-inspiration gallery** (v2 — off-mission for a PTO optimizer), and a
+**seasonal scenery showcase board** (marketing/app-store asset, not an in-app
+screen).
 
 ## Success criteria
 
 - Fresh Stitch project with the Serene Efficiency design system applied.
-- All ~38 screens generated with clean, journey-ordered naming.
+- All ~39 screens generated with clean, journey-ordered naming.
+- Scenery used as an accent (welcome, detail heroes, empty backdrops) with
+  legible text scrims — not pervasive across lists/timeline/plan.
 - Component catalog generated first; later screens visually consistent with it.
 - Value-first entry: holidays + teaser plan browsable before signup; auth is
   contextual on save/sync.
