@@ -17,7 +17,7 @@ class DaysOffApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      initialRoute: AppRoutes.demo,
+      initialRoute: AppRoutes.holidays,
       getPages: AppPages.pages,
     );
   }

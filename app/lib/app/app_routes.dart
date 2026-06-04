@@ -1,3 +1,3 @@
 abstract class AppRoutes {
-  static const demo = '/demo';
+  static const holidays = '/holidays';
 }
