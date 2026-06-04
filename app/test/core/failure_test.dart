@@ -7,7 +7,9 @@ void main() {
     expect(f, isA<NetworkFailure>());
     expect(f.message, isNotEmpty);
 
-    final result = switch (const ServerFailure('boom')) {
+    // Use a typed variable so the switch is exhaustive without dead-code warnings.
+    const Failure typed = ServerFailure('boom');
+    final result = switch (typed) {
       NetworkFailure() => 'net',
       ServerFailure(:final message) => message,
       CacheFailure() => 'cache',
