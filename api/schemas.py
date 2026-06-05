@@ -1,5 +1,6 @@
 """Pydantic response models for the daysoff-api HTTP surface."""
 from datetime import date
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -17,6 +18,7 @@ class CountriesResponse(BaseModel):
 class HolidayRecord(BaseModel):
     date: date
     name: str
+    name_local: Optional[str] = None
     source: str
 
 

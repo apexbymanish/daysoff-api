@@ -108,6 +108,7 @@ def get_holidays(country: str, year: int, from_today: bool = False) -> list[dict
         merged.append({
             "date": r["date"],
             "name": r["name"],
+            "name_local": r.get("name_local"),
             "source": r["source"],
         })
     merged.sort(key=lambda r: r["date"])
