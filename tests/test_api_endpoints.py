@@ -90,6 +90,19 @@ class TestHolidays(unittest.TestCase):
         r = self.client.get("/v1/holidays?country=KR&year=1800")
         self.assertEqual(r.status_code, 400)
 
+    def test_kr_holidays_include_korean_name_local(self):
+        r = self.client.get("/v1/holidays?country=KR&year=2026")
+        self.assertEqual(r.status_code, 200)
+        hols = r.json()["holidays"]
+        self.assertTrue(all("name_local" in h for h in hols))
+        self.assertTrue(any(h.get("name_local") == "설날" for h in hols))
+
+    def test_us_holidays_name_local_null(self):
+        r = self.client.get("/v1/holidays?country=US&year=2026")
+        self.assertEqual(r.status_code, 200)
+        hols = r.json()["holidays"]
+        self.assertTrue(all(h["name_local"] is None for h in hols))
+
 
 class TestCompare(unittest.TestCase):
     def setUp(self):
