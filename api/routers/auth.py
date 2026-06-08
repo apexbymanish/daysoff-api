@@ -16,9 +16,11 @@ from ..auth import (
     refresh_expiry,
     verify_password,
 )
+from .. import google_auth
 from ..db import get_db
-from ..models_db import RefreshToken, User
+from ..models_db import OAuthIdentity, RefreshToken, User
 from ..schemas_auth import (
+    GoogleIn,
     LoginIn,
     LogoutIn,
     RefreshIn,
@@ -67,6 +69,49 @@ async def login(body: LoginIn, db: AsyncSession = Depends(get_db)) -> TokenOut:
     if user is None or not user.password_hash \
             or not verify_password(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
+    return await _issue_tokens(db, user)
+
+
+@router.post("/v1/auth/google", response_model=TokenOut)
+async def google_signin(body: GoogleIn,
+                        db: AsyncSession = Depends(get_db)) -> TokenOut:
+    try:
+        info = google_auth.verify_google_id_token(body.id_token)
+    except Exception:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid Google token")
+
+    allowed = settings.google_client_id_set
+    if allowed and info.get("aud") not in allowed:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Google token audience not allowed")
+    email = (info.get("email") or "").lower()
+    if not email or not info.get("email_verified", False):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Google account email not verified")
+    sub = info.get("sub")
+    if not sub:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "malformed Google token")
+
+    # Find by Google identity, else link to an existing email account, else
+    # create a new user.
+    identity = await db.scalar(
+        select(OAuthIdentity).where(
+            OAuthIdentity.provider == "google",
+            OAuthIdentity.provider_sub == sub,
+        )
+    )
+    if identity is not None:
+        user = await db.scalar(select(User).where(User.id == identity.user_id))
+    else:
+        user = await db.scalar(select(User).where(User.email == email))
+        if user is None:
+            user = User(email=email, password_hash=None,
+                        display_name=info.get("name"))
+            db.add(user)
+            await db.flush()
+        db.add(OAuthIdentity(user_id=user.id, provider="google",
+                             provider_sub=sub))
+        await db.flush()
     return await _issue_tokens(db, user)
 
 

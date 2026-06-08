@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     access_ttl_min: int = 30
     refresh_ttl_days: int = 30
 
+    # Comma-separated Google OAuth client IDs accepted as ID-token audiences
+    # (the web/server client id + any platform client ids). Empty in dev.
+    google_client_ids: str = ""
+
+    @property
+    def google_client_id_set(self) -> set[str]:
+        return {c.strip() for c in self.google_client_ids.split(",") if c.strip()}
+
     # Applied to Postgres engines only (SQLite ignores them).
     db_pool_size: int = 10
     db_max_overflow: int = 20

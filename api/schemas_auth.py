@@ -38,6 +38,10 @@ class LoginIn(BaseModel):
         return v.strip().lower()
 
 
+class GoogleIn(BaseModel):
+    id_token: str
+
+
 class RefreshIn(BaseModel):
     refresh_token: str
 
