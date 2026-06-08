@@ -11,3 +11,4 @@ if _TMP_DB.exists():
 
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB}"
 os.environ["DAYSOFF_JWT_SECRET"] = "test-secret-not-for-prod-0123456789abcdef"
+os.environ["GOOGLE_CLIENT_IDS"] = "test-client-id"
