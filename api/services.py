@@ -270,6 +270,7 @@ def get_plans(country: str, year: int, budget: int,
               length: int | None = None,
               min_length: int = 3, max_length: int = 10,
               top: int = 1,
+              month: int | None = None,
               workweek: str | None = None,
               from_today: bool = False) -> dict:
     """Return the /v1/plan response body as a plain dict.
@@ -278,6 +279,11 @@ def get_plans(country: str, year: int, budget: int,
       - length set: returns only that length, up to `top` entries.
       - length unset: returns each length in [min_length, max_length],
         up to `top` entries each.
+
+    When `month` (1..12) is set, results are anchored to that month: only
+    breaks that START in that month are considered, so the per-length top-N
+    surfaces that month's own bridges (e.g. extending a holiday into the
+    following work-week) instead of the globally cheapest break of each length.
     """
     cc = _validate_country(country)
     _validate_year(year)
@@ -285,6 +291,8 @@ def get_plans(country: str, year: int, budget: int,
         raise ApiInputError(f"budget must be >= 0, got {budget}")
     if top < 1:
         raise ApiInputError(f"top must be >= 1, got {top}")
+    if month is not None and not (1 <= month <= 12):
+        raise ApiInputError(f"month must be in [1, 12], got {month}")
 
     if length is not None:
         if length < 1 or length > 31:
@@ -313,6 +321,9 @@ def get_plans(country: str, year: int, budget: int,
     if from_today:
         today = _date.today()
         candidates = [c for c in candidates if c["start"] >= today]
+
+    if month is not None:
+        candidates = [c for c in candidates if c["start"].month == month]
 
     wanted_set = set(wanted_lengths)
     results_by_length: dict[str, list[dict]] = {str(L): [] for L in wanted_lengths}

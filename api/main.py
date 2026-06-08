@@ -97,12 +97,16 @@ def plan(
     min_length: int = Query(3, description="Inclusive lower bound (ignored if length is set)"),
     max_length: int = Query(10, description="Inclusive upper bound (ignored if length is set)"),
     top: int = Query(1, description="Max alternatives per length"),
+    month: Optional[int] = Query(
+        default=None,
+        description="If set (1..12), anchor results to breaks that start in this month",
+    ),
     workweek: Optional[str] = Query(default=None, description="Comma list of OFF days, e.g. sat,sun"),
     from_today: bool = Query(False),
 ) -> schemas.PlanResponse:
     result = services.get_plans(
         country, year, budget,
         length=length, min_length=min_length, max_length=max_length,
-        top=top, workweek=workweek, from_today=from_today,
+        top=top, month=month, workweek=workweek, from_today=from_today,
     )
     return schemas.PlanResponse(**result)

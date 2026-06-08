@@ -279,6 +279,50 @@ class TestPlan(unittest.TestCase):
             f"got entries={entries}",
         )
 
+    def test_month_filter_anchors_every_result_to_that_month(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=10&month=9&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        # With month=9, every returned break must START in September.
+        for entries in body["results_by_length"].values():
+            for trip in entries:
+                self.assertEqual(
+                    trip["break_start"][:7], "2026-09",
+                    f"trip does not start in September: {trip}",
+                )
+
+    def test_month_filter_surfaces_longer_chuseok_bridge(self):
+        # Globally the cheapest length-7 break is elsewhere (Korean New Year in
+        # February), so the default (month-less) menu never shows a 7-day
+        # September option. Anchored to month=9 the length-7 result must be a
+        # Chuseok bridge (Sep 22 -> Sep 28, 3 PTO: Tue 22 + Wed 23 + Mon 28).
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=10&month=9&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        seven = r.json()["results_by_length"]["7"]
+        self.assertTrue(seven, "expected a length-7 September break")
+        trip = seven[0]
+        self.assertEqual(trip["break_start"], "2026-09-22")
+        self.assertEqual(trip["break_end"], "2026-09-28")
+        self.assertEqual(trip["pto_cost"], 3)
+        self.assertTrue(
+            any("Chuseok" in a for a in trip["anchors"]),
+            f"expected a Chuseok anchor; got {trip['anchors']}",
+        )
+
+    def test_invalid_month_returns_400(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&month=13&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("month", r.json()["detail"].lower())
+
     def test_unsupported_country_returns_400(self):
         r = self.client.get(
             "/v1/plan?country=ZZ&year=2026&budget=15&workweek=sat,sun"
