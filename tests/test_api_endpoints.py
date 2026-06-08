@@ -200,6 +200,33 @@ class TestSandwiches(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
         self.assertIn("max_pto", r.json()["detail"].lower())
 
+    def test_budget_filters_out_unaffordable_bridges(self):
+        # With budget=1, no bridge costing more than 1 PTO may appear.
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&budget=1"
+        )
+        self.assertEqual(r.status_code, 200)
+        costs = [s["pto_cost"] for s in r.json()["sandwiches"]]
+        self.assertTrue(costs)  # some 1-PTO sandwiches still exist
+        self.assertTrue(all(c <= 1 for c in costs))
+
+    def test_break_length_range_filters_bridges(self):
+        # max_length=4 keeps only short bridges; the 9-day Lunar New Year
+        # bridge (2 PTO) must be excluded.
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_length=4"
+        )
+        self.assertEqual(r.status_code, 200)
+        lengths = [s["break_length"] for s in r.json()["sandwiches"]]
+        self.assertTrue(all(le <= 4 for le in lengths))
+
+    def test_budget_zero_returns_no_bridges(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&budget=0"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["count"], 0)
+
     def test_invalid_workweek_returns_400(self):
         r = self.client.get(
             "/v1/sandwiches?country=KR&year=2026&workweek=xyz,bogus"

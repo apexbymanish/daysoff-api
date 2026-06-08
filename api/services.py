@@ -201,30 +201,55 @@ _WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def get_sandwiches(country: str, year: int, workweek: str | None = None,
-                   from_today: bool = False, max_pto: int = 3) -> dict:
+                   from_today: bool = False, max_pto: int = 3,
+                   budget: int | None = None,
+                   min_length: int | None = None,
+                   max_length: int | None = None) -> dict:
     """Return the /v1/sandwiches response body as a plain dict.
 
     max_pto bounds how many PTO days a bridge may cost: 1 = classic single-day
     sandwiches only; higher also surfaces multi-day bridges (e.g. take Mon+Tue
     before a Wednesday holiday). Items are sorted by efficiency (days off per
     PTO day) so the cheapest tricks rank first.
+
+    Optional preference filters (each ignored when None):
+      - budget: drop bridges that cost more PTO than this (also caps max_pto).
+      - min_length / max_length: keep only bridges whose resulting break length
+        falls in this inclusive range.
     """
     cc = _validate_country(country)
     _validate_year(year)
     if not (1 <= max_pto <= 7):
         raise ApiInputError(f"max_pto must be in [1, 7], got {max_pto}")
+    if budget is not None and budget < 0:
+        raise ApiInputError(f"budget must be >= 0, got {budget}")
     weekend_set, weekend_names, source = _resolve_workweek(cc, workweek)
 
     lib_records = library_source.fetch(year, cc)
     holiday_name_map = {r["date"]: r["name"] for r in lib_records}
     holiday_dates = set(holiday_name_map.keys())
 
+    # No point generating bridges that already exceed the PTO budget.
+    effective_max_pto = max_pto if budget is None else min(max_pto, budget)
+    if effective_max_pto < 1:
+        return {
+            "country": cc, "year": year, "workweek": weekend_names,
+            "workweek_source": source, "count": 0, "sandwiches": [],
+        }
+
     raw = sandwich.detect(holiday_dates, year, weekend_days=weekend_set,
-                          max_pto=max_pto)
+                          max_pto=effective_max_pto)
     today = _date.today()
     items = []
     for s in raw:
         if from_today and s["sandwich_date"] < today:
+            continue
+        if budget is not None and s["pto_count"] > budget:
+            continue
+        length = s["break_length_days"]
+        if min_length is not None and length < min_length:
+            continue
+        if max_length is not None and length > max_length:
             continue
         anchors = [
             holiday_name_map[d]

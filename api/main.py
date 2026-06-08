@@ -79,9 +79,13 @@ def sandwiches(
     workweek: str = Query(default=None, description="Comma list of OFF days, e.g. sat,sun"),
     from_today: bool = Query(False),
     max_pto: int = Query(3, description="Widest workday gap to bridge (1 = single-day sandwiches only)"),
+    budget: Optional[int] = Query(None, description="Drop bridges costing more PTO than this"),
+    min_length: Optional[int] = Query(None, description="Keep only bridges with break length >= this"),
+    max_length: Optional[int] = Query(None, description="Keep only bridges with break length <= this"),
 ) -> schemas.SandwichesResponse:
     result = services.get_sandwiches(
-        country, year, workweek=workweek, from_today=from_today, max_pto=max_pto
+        country, year, workweek=workweek, from_today=from_today, max_pto=max_pto,
+        budget=budget, min_length=min_length, max_length=max_length,
     )
     return schemas.SandwichesResponse(**result)
 
