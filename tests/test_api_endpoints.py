@@ -158,19 +158,74 @@ class TestSandwiches(unittest.TestCase):
         self.assertEqual(body["workweek"], ["sat", "sun"])
         self.assertGreater(body["count"], 0)
         for s in body["sandwiches"]:
-            self.assertEqual(s["pto_cost"], 1)
-            self.assertIn("pto_date", s)
+            # Default endpoint bridges cost 1..3 PTO; pto_dates lists each day.
+            self.assertGreaterEqual(s["pto_cost"], 1)
+            self.assertLessEqual(s["pto_cost"], 3)
+            self.assertEqual(len(s["pto_dates"]), s["pto_cost"])
+            self.assertEqual(s["pto_dates"][0], s["pto_date"])
             self.assertIn("break_start", s)
             self.assertIn("break_end", s)
             self.assertIn("break_length", s)
             self.assertIn("context", s)
 
-    def test_sandwiches_sorted_by_pto_date(self):
+    def test_sandwiches_sorted_by_efficiency(self):
+        # Best deal (most days off per PTO day) first.
         r = self.client.get(
             "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
         )
-        dates = [s["pto_date"] for s in r.json()["sandwiches"]]
-        self.assertEqual(dates, sorted(dates))
+        effs = [s["break_length"] / s["pto_cost"]
+                for s in r.json()["sandwiches"]]
+        for prev, curr in zip(effs, effs[1:]):
+            self.assertGreaterEqual(prev, curr)
+
+    def test_max_pto_one_returns_only_single_day_sandwiches(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_pto=1"
+        )
+        self.assertEqual(r.status_code, 200)
+        for s in r.json()["sandwiches"]:
+            self.assertEqual(s["pto_cost"], 1)
+
+    def test_default_surfaces_multi_pto_bridge(self):
+        # KR 2026 has a 2-PTO Lunar New Year bridge (take Feb 19 + 20).
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
+        )
+        self.assertTrue(any(s["pto_cost"] >= 2 for s in r.json()["sandwiches"]))
+
+    def test_invalid_max_pto_returns_400(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_pto=0"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("max_pto", r.json()["detail"].lower())
+
+    def test_budget_filters_out_unaffordable_bridges(self):
+        # With budget=1, no bridge costing more than 1 PTO may appear.
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&budget=1"
+        )
+        self.assertEqual(r.status_code, 200)
+        costs = [s["pto_cost"] for s in r.json()["sandwiches"]]
+        self.assertTrue(costs)  # some 1-PTO sandwiches still exist
+        self.assertTrue(all(c <= 1 for c in costs))
+
+    def test_break_length_range_filters_bridges(self):
+        # max_length=4 keeps only short bridges; the 9-day Lunar New Year
+        # bridge (2 PTO) must be excluded.
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_length=4"
+        )
+        self.assertEqual(r.status_code, 200)
+        lengths = [s["break_length"] for s in r.json()["sandwiches"]]
+        self.assertTrue(all(le <= 4 for le in lengths))
+
+    def test_budget_zero_returns_no_bridges(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&budget=0"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["count"], 0)
 
     def test_invalid_workweek_returns_400(self):
         r = self.client.get(
@@ -278,6 +333,50 @@ class TestPlan(unittest.TestCase):
             f"expected at least one length-5 trip with a Chuseok anchor; "
             f"got entries={entries}",
         )
+
+    def test_month_filter_anchors_every_result_to_that_month(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=10&month=9&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        # With month=9, every returned break must START in September.
+        for entries in body["results_by_length"].values():
+            for trip in entries:
+                self.assertEqual(
+                    trip["break_start"][:7], "2026-09",
+                    f"trip does not start in September: {trip}",
+                )
+
+    def test_month_filter_surfaces_longer_chuseok_bridge(self):
+        # Globally the cheapest length-7 break is elsewhere (Korean New Year in
+        # February), so the default (month-less) menu never shows a 7-day
+        # September option. Anchored to month=9 the length-7 result must be a
+        # Chuseok bridge (Sep 22 -> Sep 28, 3 PTO: Tue 22 + Wed 23 + Mon 28).
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&min_length=3&max_length=10&month=9&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 200)
+        seven = r.json()["results_by_length"]["7"]
+        self.assertTrue(seven, "expected a length-7 September break")
+        trip = seven[0]
+        self.assertEqual(trip["break_start"], "2026-09-22")
+        self.assertEqual(trip["break_end"], "2026-09-28")
+        self.assertEqual(trip["pto_cost"], 3)
+        self.assertTrue(
+            any("Chuseok" in a for a in trip["anchors"]),
+            f"expected a Chuseok anchor; got {trip['anchors']}",
+        )
+
+    def test_invalid_month_returns_400(self):
+        r = self.client.get(
+            "/v1/plan?country=KR&year=2026&budget=15"
+            "&month=13&workweek=sat,sun"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("month", r.json()["detail"].lower())
 
     def test_unsupported_country_returns_400(self):
         r = self.client.get(
