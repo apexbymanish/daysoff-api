@@ -5,6 +5,7 @@ Endpoints are stateless and read-only. No auth in v1.
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date as _date
 from typing import Optional
 
@@ -13,23 +14,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api import schemas, services
+from api.db import create_all
+from api.routers import auth as auth_router
+from api.routers import saved_breaks as saved_breaks_router
 
 
 API_VERSION = "1.0.0"
 
+
+@asynccontextmanager
+async def lifespan(app: "FastAPI"):
+    # Dev/test convenience: ensure the accounts tables exist. Prod uses Alembic.
+    await create_all()
+    yield
+
+
 app = FastAPI(
     title="daysoff-api",
     version=API_VERSION,
-    description="Read-only public API for holidays, comparisons, and sandwich-day detection.",
+    description="Public API for holidays, comparisons, and sandwich-day detection, plus accounts + saved-breaks sync.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router.router)
+app.include_router(saved_breaks_router.router)
 
 
 @app.exception_handler(services.ApiInputError)
