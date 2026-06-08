@@ -201,17 +201,26 @@ _WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def get_sandwiches(country: str, year: int, workweek: str | None = None,
-                   from_today: bool = False) -> dict:
-    """Return the /v1/sandwiches response body as a plain dict."""
+                   from_today: bool = False, max_pto: int = 3) -> dict:
+    """Return the /v1/sandwiches response body as a plain dict.
+
+    max_pto bounds how many PTO days a bridge may cost: 1 = classic single-day
+    sandwiches only; higher also surfaces multi-day bridges (e.g. take Mon+Tue
+    before a Wednesday holiday). Items are sorted by efficiency (days off per
+    PTO day) so the cheapest tricks rank first.
+    """
     cc = _validate_country(country)
     _validate_year(year)
+    if not (1 <= max_pto <= 7):
+        raise ApiInputError(f"max_pto must be in [1, 7], got {max_pto}")
     weekend_set, weekend_names, source = _resolve_workweek(cc, workweek)
 
     lib_records = library_source.fetch(year, cc)
     holiday_name_map = {r["date"]: r["name"] for r in lib_records}
     holiday_dates = set(holiday_name_map.keys())
 
-    raw = sandwich.detect(holiday_dates, year, weekend_days=weekend_set)
+    raw = sandwich.detect(holiday_dates, year, weekend_days=weekend_set,
+                          max_pto=max_pto)
     today = _date.today()
     items = []
     for s in raw:
@@ -224,15 +233,17 @@ def get_sandwiches(country: str, year: int, workweek: str | None = None,
         ]
         items.append({
             "pto_date": s["sandwich_date"],
+            "pto_dates": list(s["pto_dates"]),
             "weekday": _WEEKDAY_LABELS[s["sandwich_date"].weekday()],
             "break_start": s["break_start"],
             "break_end": s["break_end"],
             "break_length": s["break_length_days"],
-            "pto_cost": 1,
+            "pto_cost": s["pto_count"],
             "context": " + ".join(anchors[:2]),
         })
 
-    items.sort(key=lambda i: i["pto_date"])
+    # Most efficient first (days off per PTO day), then soonest.
+    items.sort(key=lambda i: (-(i["break_length"] / i["pto_cost"]), i["pto_date"]))
     return {
         "country": cc,
         "year": year,

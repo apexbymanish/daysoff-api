@@ -42,7 +42,8 @@ class CompareResponse(BaseModel):
 
 
 class SandwichRecord(BaseModel):
-    pto_date: date
+    pto_date: date  # first PTO day of the bridge (primary, for back-compat)
+    pto_dates: list[date] = []  # every PTO day to take (length == pto_cost)
     weekday: str
     break_start: date
     break_end: date

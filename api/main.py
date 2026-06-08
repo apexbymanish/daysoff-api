@@ -78,9 +78,10 @@ def sandwiches(
     year: int = Query(default_factory=lambda: _date.today().year),
     workweek: str = Query(default=None, description="Comma list of OFF days, e.g. sat,sun"),
     from_today: bool = Query(False),
+    max_pto: int = Query(3, description="Widest workday gap to bridge (1 = single-day sandwiches only)"),
 ) -> schemas.SandwichesResponse:
     result = services.get_sandwiches(
-        country, year, workweek=workweek, from_today=from_today
+        country, year, workweek=workweek, from_today=from_today, max_pto=max_pto
     )
     return schemas.SandwichesResponse(**result)
 

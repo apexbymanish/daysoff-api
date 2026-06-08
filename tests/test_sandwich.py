@@ -97,6 +97,49 @@ class TestSandwichWorst(unittest.TestCase):
             self.assertNotIn(d, dates)
 
 
+# ─── multi-PTO bridges (max_pto > 1) ───────────────────────────────────────
+
+class TestSandwichMultiPto(unittest.TestCase):
+    def test_wednesday_holiday_creates_mon_tue_bridge(self):
+        # Wed Jan 7 2026 holiday. Mon Jan 5 + Tue Jan 6 are the two workdays
+        # between the Sat-Sun weekend and the Wednesday holiday. With max_pto=2
+        # taking both bridges into a Sat-Wed (5-day) break for 2 PTO.
+        holidays = {date(2026, 1, 7)}
+        bridges = detect(holidays, 2026, max_pto=2)
+        before = next(s for s in bridges
+                      if s["pto_dates"] == [date(2026, 1, 5), date(2026, 1, 6)])
+        self.assertEqual(before["pto_count"], 2)
+        self.assertEqual(before["break_start"], date(2026, 1, 3))  # Sat
+        self.assertEqual(before["break_end"], date(2026, 1, 7))    # Wed holiday
+        self.assertEqual(before["break_length_days"], 5)
+        # The symmetric Thu+Fri AFTER the holiday is also a valid 2-PTO bridge.
+        self.assertTrue(any(
+            s["pto_dates"] == [date(2026, 1, 8), date(2026, 1, 9)]
+            for s in bridges))
+
+    def test_default_max_pto_one_skips_two_day_gap(self):
+        # The same Wednesday holiday yields NO sandwich at the default max_pto=1
+        # because the gap is two workdays wide (taking one leaves the other).
+        holidays = {date(2026, 1, 7)}
+        self.assertEqual(detect(holidays, 2026), [])
+
+    def test_three_day_gap_skipped_when_over_cap(self):
+        # Thu Jan 8 holiday → Mon-Wed (3 workdays) before it. With max_pto=2 the
+        # 3-day gap exceeds the cap and is not offered.
+        holidays = {date(2026, 1, 8)}
+        bridges = detect(holidays, 2026, max_pto=2)
+        self.assertEqual(
+            [s for s in bridges if s["pto_dates"][0] == date(2026, 1, 5)], [])
+
+    def test_single_run_not_split_into_subcombos(self):
+        # Each 2-workday gap is offered as a single cost-2 bridge, never also a
+        # cost-1 entry — taking one day of the pair wouldn't connect the blocks.
+        holidays = {date(2026, 1, 7)}
+        bridges = detect(holidays, 2026, max_pto=3)
+        self.assertTrue(bridges)
+        self.assertTrue(all(s["pto_count"] == 2 for s in bridges))
+
+
 # ─── custom weekend_days ──────────────────────────────────────────────────
 
 class TestDetectCustomWeekend(unittest.TestCase):

@@ -158,19 +158,47 @@ class TestSandwiches(unittest.TestCase):
         self.assertEqual(body["workweek"], ["sat", "sun"])
         self.assertGreater(body["count"], 0)
         for s in body["sandwiches"]:
-            self.assertEqual(s["pto_cost"], 1)
-            self.assertIn("pto_date", s)
+            # Default endpoint bridges cost 1..3 PTO; pto_dates lists each day.
+            self.assertGreaterEqual(s["pto_cost"], 1)
+            self.assertLessEqual(s["pto_cost"], 3)
+            self.assertEqual(len(s["pto_dates"]), s["pto_cost"])
+            self.assertEqual(s["pto_dates"][0], s["pto_date"])
             self.assertIn("break_start", s)
             self.assertIn("break_end", s)
             self.assertIn("break_length", s)
             self.assertIn("context", s)
 
-    def test_sandwiches_sorted_by_pto_date(self):
+    def test_sandwiches_sorted_by_efficiency(self):
+        # Best deal (most days off per PTO day) first.
         r = self.client.get(
             "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
         )
-        dates = [s["pto_date"] for s in r.json()["sandwiches"]]
-        self.assertEqual(dates, sorted(dates))
+        effs = [s["break_length"] / s["pto_cost"]
+                for s in r.json()["sandwiches"]]
+        for prev, curr in zip(effs, effs[1:]):
+            self.assertGreaterEqual(prev, curr)
+
+    def test_max_pto_one_returns_only_single_day_sandwiches(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_pto=1"
+        )
+        self.assertEqual(r.status_code, 200)
+        for s in r.json()["sandwiches"]:
+            self.assertEqual(s["pto_cost"], 1)
+
+    def test_default_surfaces_multi_pto_bridge(self):
+        # KR 2026 has a 2-PTO Lunar New Year bridge (take Feb 19 + 20).
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun"
+        )
+        self.assertTrue(any(s["pto_cost"] >= 2 for s in r.json()["sandwiches"]))
+
+    def test_invalid_max_pto_returns_400(self):
+        r = self.client.get(
+            "/v1/sandwiches?country=KR&year=2026&workweek=sat,sun&max_pto=0"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("max_pto", r.json()["detail"].lower())
 
     def test_invalid_workweek_returns_400(self):
         r = self.client.get(
