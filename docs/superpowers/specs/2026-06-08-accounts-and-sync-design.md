@@ -19,10 +19,32 @@ for them.
   length, days off, country/year, theme) stay device-local.
 - **Auth (Phase 1):** our own **email + password** — bcrypt hashes, JWT access
   token + rotating refresh token, all in our DB.
-- **Database:** **SQLite** via SQLAlchemy 2.0 + Alembic. Local file in dev; a
-  mounted Fly volume in production (deploy deferred).
-- **Local-first:** develop against `127.0.0.1:8080` with a local SQLite file;
-  provision the Fly volume + secrets + redeploy in a later pass.
+- **Database:** built to scale to **millions of users**. **PostgreSQL in
+  production** via **async SQLAlchemy 2.0** (`asyncpg`) + Alembic; **SQLite
+  (`aiosqlite`) for local dev and tests** so we can build now with zero setup.
+  The two are swappable via a single `DATABASE_URL`; the Phase-1 schema uses
+  only portable column types (no Postgres-only features), so dev/prod parity
+  holds.
+- **Local-first:** develop against `127.0.0.1:8080` on a local SQLite file;
+  provision managed Postgres + secrets + deploy in a later pass.
+
+### Scaling architecture (how it reaches millions of users)
+
+- **Stateless API:** auth is JWT-based, so the FastAPI app holds no per-user
+  session state and scales **horizontally** — add machines behind a load
+  balancer, all sharing one Postgres.
+- **Async I/O:** async SQLAlchemy + `asyncpg` keeps request handlers
+  non-blocking under high concurrency.
+- **Connection pooling:** a bounded engine pool per machine, fronted by a
+  managed pooler (pgbouncer / Neon / Supabase pooler) in prod so thousands of
+  app connections collapse onto a small Postgres connection budget.
+- **Indexes:** `users.email` (unique), `saved_breaks.user_id`,
+  `refresh_tokens.token_hash`, `oauth_identities (provider, provider_sub)` —
+  every hot lookup is indexed; UUID primary keys avoid hot-spotting.
+- **Read-replica / partition headroom:** read-heavy endpoints can later be
+  routed to replicas; `saved_breaks` is already keyed by `user_id` for clean
+  sharding/partitioning if ever needed. No Phase-1 work, just no design
+  dead-ends.
 
 ## Out of scope (Phase 1)
 
@@ -39,30 +61,36 @@ for them.
 
 ### Dependencies (add to `requirements.txt`)
 
-- `sqlalchemy>=2.0`
+- `sqlalchemy[asyncio]>=2.0`
 - `alembic>=1.13`
+- `asyncpg>=0.29` (Postgres driver, prod)
+- `aiosqlite>=0.19` (SQLite async driver, local/test)
 - `bcrypt>=4.1`
 - `pyjwt>=2.8`
 - `pydantic-settings>=2.0`
 
 ### Config — `api/settings.py` (pydantic-settings)
 
-- `DAYSOFF_DB_URL` — default `sqlite:////data/daysoff.db` (prod volume);
-  dev override `sqlite:///./daysoff.db`.
+- `DATABASE_URL` — default dev `sqlite+aiosqlite:///./daysoff.db`; prod
+  `postgresql+asyncpg://…`.
 - `DAYSOFF_JWT_SECRET` — required, HS256 signing key.
-- `ACCESS_TTL_MIN = 30`, `REFRESH_TTL_DAYS = 30` (constants for now).
+- `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` (defaults sane for Postgres; ignored by
+  SQLite).
+- `ACCESS_TTL_MIN = 30`, `REFRESH_TTL_DAYS = 30`.
 
 This is a **separate** database from the holidays cache (`storage.py`'s
 `holidays.db`), which is unchanged.
 
 ### DB layer — `api/db.py`
 
-- Sync SQLAlchemy 2.0 engine + `sessionmaker`; SQLite with
-  `connect_args={"check_same_thread": False}`. FastAPI dependency `get_db()`
-  yields a `Session` and closes it.
+- **Async** SQLAlchemy 2.0: `create_async_engine(DATABASE_URL, …)` +
+  `async_sessionmaker`. Pool size/overflow applied for Postgres; SQLite gets
+  `check_same_thread=False`. FastAPI dependency `get_db()` yields an
+  `AsyncSession`.
 - `Base = DeclarativeBase`.
-- Alembic initialised under `alembic/` with `env.py` bound to `Base.metadata`;
-  one initial migration creates all Phase-1 tables.
+- Alembic initialised under `alembic/` (async `env.py` bound to
+  `Base.metadata`); one initial migration creates all Phase-1 tables. Portable
+  column types only so the same migration runs on SQLite and Postgres.
 
 ### Models — `api/models_db.py`
 
@@ -194,9 +222,14 @@ Two plans (separate subsystems / repos), built in order:
 
 ## Assumptions / risks
 
-- Single-machine SQLite is fine for this scale; horizontal scale is a non-goal.
+- **Scale target:** Postgres in prod + stateless JWT API + pooling + indexes is
+  the path to millions of users; SQLite is dev/test only. Risk: dev/prod DB
+  drift — mitigated by using only portable column types in Phase 1 and running
+  the migration against Postgres before deploy.
 - `updated_at` from the device clock drives LWW — low-conflict for personal
   saved breaks; revisit if multi-device conflicts surface.
 - No email verification / password reset in Phase 1 (future).
-- Deploy (Fly volume + `DAYSOFF_JWT_SECRET` secret + redeploy) is a separate
-  follow-up; until then the mobile app points at the local backend.
+- Deploy (managed Postgres + pooler + `DAYSOFF_JWT_SECRET` secret) is a separate
+  follow-up; until then the mobile app points at the local backend (SQLite).
+- UUID primary keys stored as `String(36)` for SQLite/Postgres portability
+  (can migrate to native `uuid`/`bigint` identity in a Postgres-only future).
